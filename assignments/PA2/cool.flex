@@ -86,6 +86,7 @@ whitespace  [ \t\v\r\f]+
 <comment2>\n   {curr_lineno++;}
 <comment2><<EOF>> {
     strcpy(cool_yylval.error_msg, "EOF in comment");
+    BEGIN(0);
     return (ERROR);
 }
 <comment2>"\*)"   {
@@ -169,17 +170,6 @@ f[aA][lL][sS][eE]   {
     BEGIN(string);
 }
 
-<string>\n    {
-    curr_lineno++;
-    strcpy(cool_yylval.error_msg, "Unterminated string constant");
-    BEGIN(0);
-    return (ERROR);
-}
-
-<string>\\\n  {
-    curr_lineno++;
-}
-
 <string><<EOF>> {
     strcpy(cool_yylval.error_msg, "EOF in string constant");
     BEGIN(0);
@@ -207,13 +197,16 @@ f[aA][lL][sS][eE]   {
     }
 }
 
-<string>. {
-    if (str_len >= MAX_STR_CONST) {
-        strcpy(cool_yylval.error_msg, "String constant too long");
-        BEGIN(0);
-        return (ERROR);
-    }
-    string_buf[str_len++] = yytext[0];
+
+<string>\\\n  {
+    curr_lineno++;
+}
+
+<string>\n    {
+    curr_lineno++;
+    strcpy(cool_yylval.error_msg, "Unterminated string constant");
+    BEGIN(0);
+    return (ERROR);
 }
 
 <string>\"  {
@@ -226,6 +219,16 @@ f[aA][lL][sS][eE]   {
     BEGIN(0);
     return (STR_CONST);
 }
+
+<string>. {
+    if (str_len >= MAX_STR_CONST) {
+        strcpy(cool_yylval.error_msg, "String constant too long");
+        BEGIN(0);
+        return (ERROR);
+    }
+    string_buf[str_len++] = yytext[0];
+}
+
 
 
 {number}    {
