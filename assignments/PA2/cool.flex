@@ -92,7 +92,7 @@ whitespace  [ \t\v\r\f]+
 <comment2>.   { /*skip the comments in (*...*) */ }
 <comment2>"*)"   {
     comment_level--;
-    if (cooment_level == 0) BEGIN(0);
+    if (comment_level == 0) BEGIN(0);
 }
 "*)"    {
     cool_yylval.error_msg = "Unmatched *)";
