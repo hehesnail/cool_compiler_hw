@@ -42,9 +42,15 @@ extern YYSTYPE cool_yylval;
 /*
  *  Add Your own definitions here
  */
+#define append_str(char c) \
+        *(string_buf_ptr++) = c; \ 
+        if (string_buf + MAX_STR_CONST == string_buf_ptr) {
+          BEGIN(string_long);
+          cool_yylval.error_msg = "String constant too long";
+          return ERROR;
+        }
 
-int str_len;
-bool str_with_null;
+int comment_level;
 
 %}
 
@@ -63,7 +69,8 @@ objid       [a-z][A-Za-z0-9_]*
 newline     \n
 whitespace  [ \t\v\r\f]+
 
-%x comment1 comment2 string
+%x comment1 comment2 
+%x string string_null string_long string_escape
 
 %%
 
@@ -71,49 +78,31 @@ whitespace  [ \t\v\r\f]+
 {newline}     {curr_lineno++;}
 {whitespace}  { /*Skip the white spaces*/ }
 
-"--"    {BEGIN(comment1);}
-"(\*"    {BEGIN(comment2);}
-"\*)"    {
-    strcpy(cool_yylval.error_msg, "Unmatched *)");
-    return (ERROR);
-}
 
+"--"    {BEGIN(comment1);}
 <comment1>\n   {
     BEGIN(0); 
     curr_lineno++;
 }
+<comment1>.   { /*skip the comments started with -- */ }
 
-<comment2>\n   {curr_lineno++;}
+"(*"              {BEGIN(comment2); comment_level=1;}
+<comment2>"(*"    {comment_level++;}
+<comment2>\n      {curr_lineno++;}
 <comment2><<EOF>> {
-    strcpy(cool_yylval.error_msg, "EOF in comment");
     BEGIN(0);
+    cool_yylval.error_msg = "EOF in comment";
     return (ERROR);
 }
-<comment2>"\*)"   {
-    BEGIN(0);
-}
-
-<comment1>.   { /*skip the comments started with -- */ }
 <comment2>.   { /*skip the comments in (*...*) */ }
-
-
-"{"   {return '{';}
-"}"   {return '}';}
-"("   {return '(';}
-")"   {return ')';}
-"~"   {return '~';}
-","   {return ',';}
-";"   {return ';';}
-":"   {return ':';}
-"+"   {return '+';}
-"-"   {return '-';}
-"*"   {return '*';}
-"/"   {return '/';}
-"<"   {return '<';}
-"="   {return '=';}
-"."   {return '.';}
-"@"   {return '@';}
-
+<comment2>"*)"   {
+    comment_level--;
+    if (cooment_level == 0) BEGIN(0);
+}
+"*)"    {
+    cool_yylval.error_msg = "Unmatched *)";
+    return (ERROR);
+}
 
  /*
   *  The multiple-character operators.
@@ -163,73 +152,39 @@ f[aA][lL][sS][eE]   {
   *
   */
 
-\"  {
-    memset(string_buf, 0, sizeof(string_buf));
-    str_len = 0;
-    str_with_null = false;
-    BEGIN(string);
-}
+\"              { BEGIN(string); string_buf_ptr = string_buf;}
+<string>\"      { BEGIN(0); 
+                  cool_yylval.symbol = stringtable.add_string(string_buf, string_buf_ptr - string_buf); 
+                  return STR_CONST;}
+<string><<EOF>> { BEGIN(0); cool_yylval.error_msg = "EOF in string constant";
+                  return ERROR;}
+<string>\n      { BEGIN(0);
+                  cool_yylval.error_msg = "Unterminated string constant";
+                  curr_lineno++;
+                  return ERROR; }
+<string>\0      { BEGIN(string_null);
+                  cool_yylval.error_msg = "String contains null character";
+                  return ERROR; }
+<string>\\0     { append_str('0');}
+<string>\\n     { append_str('\n');}
+<string>\\t     { append_str('\t');}
+<string>\\b     { append_str('\b');}
+<string>\\f     { append_str('\f');}
+<string>\\      { BEGIN(string_escape);}
+<string>.       { append_str(yytext[0]);}
 
-<string><<EOF>> {
-    strcpy(cool_yylval.error_msg, "EOF in string constant");
-    BEGIN(0);
-    return (ERROR);
-}
+<string_escape><<EOF>>  {BEGIN(0); cool_yylval.error_msg = "EOF in string constant"; return ERROR;}
+<string_escape>\0   {BEGIN(string_null); cool_yylval.error_msg = "String contains null character"; return ERROR;}
+<string_escape>\n   {BEGIN(string); append_str('\n'); curr_lineno++; }
+<string_escape>.    {BEGIN(string); append_str(yytext[0]);}
 
-<string>\\. {
-    if (str_len >= MAX_STR_CONST) {
-        strcpy(cool_yylval.error_msg, "String constant too long");
-        BEGIN(0);
-        return (ERROR);
-    }
-    switch(yytext[1]) {
-      case '\"': string_buf[str_len++] = '\"'; break;
-      case '\\': string_buf[str_len++] = '\\'; break;
-      case 'n': string_buf[str_len++] = '\n'; break;
-      case 'b': string_buf[str_len++] = '\b'; break;
-      case 'f': string_buf[str_len++] = '\f'; break;
-      case 't': string_buf[str_len++] = '\t'; break;
-      case '0': string_buf[str_len++] = 0; 
-                str_with_null = true;
-                break;
-      default:  string_buf[str_len++] = yytext[1];
-                break;
-    }
-}
+<string_null>\"     {BEGIN(0);}
+<string_null>\n     {BEGIN(0); curr_lineno++;}
+<string_null>.
 
-
-<string>\\\n  {
-    curr_lineno++;
-}
-
-<string>\n    {
-    curr_lineno++;
-    strcpy(cool_yylval.error_msg, "Unterminated string constant");
-    BEGIN(0);
-    return (ERROR);
-}
-
-<string>\"  {
-    if (str_len > 1 && str_with_null) {
-        strcpy(cool_yylval.error_msg, "String contains null character");
-        BEGIN(0);
-        return (ERROR);
-    }
-    cool_yylval.symbol = stringtable.add_string(string_buf);
-    BEGIN(0);
-    return (STR_CONST);
-}
-
-<string>. {
-    if (str_len >= MAX_STR_CONST) {
-        strcpy(cool_yylval.error_msg, "String constant too long");
-        BEGIN(0);
-        return (ERROR);
-    }
-    string_buf[str_len++] = yytext[0];
-}
-
-
+<string_long>\"     {BEGIN(0);}
+<string_long>\n     {BEGIN(0); curr_lineno++;}
+<string_long>.
 
 {number}    {
     cool_yylval.symbol = inttable.add_string(yytext);
@@ -246,9 +201,7 @@ f[aA][lL][sS][eE]   {
     return (OBJECTID);
 }
 
-.     {
-    strcpy(cool_yylval.error_msg, yytext);
-    return (ERROR);
-}
+[^A-za-z0-9+\-*/~=\(\)<;:\.,@\{\}]  {yytext[1] = 0; cool_yylval.error_msg = yytext; return ERROR; }
+.   {return yytext[0];}
 
 %%
