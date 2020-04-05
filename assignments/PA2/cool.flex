@@ -143,7 +143,7 @@ whitespace  [ \t\v\r\f]+
 (?i:esac)     {return ESAC;}
 (?i:new)      {return NEW;}
 (?i:of)       {return OF;}
-(?:not)       {return NOT;}
+(?i:not)       {return NOT;}
 
 t(?i:rue)   {
       cool_yylval.boolean = 1;
