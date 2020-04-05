@@ -64,16 +64,10 @@ whitespace  [ \t\v\r\f]+
 
 %%
 
-/*
- * Deal with white spaces
- */
 
 {newline}     {curr_lineno++;}
 {whitespace}  { /*Skip the white spaces*/ }
 
- /*
-  *  Nested comments
-  */
 "--"    {BEGIN(comment1);}
 "(*"    {BEGIN(comment2);}
 "*)"    {
@@ -98,9 +92,6 @@ whitespace  [ \t\v\r\f]+
 <comment1>.   { /*skip the comments started with -- */ }
 <comment2>.   { /*skip the comments in (*...*) */ }
 
-/*
- * The single-character operator
- */
 
 "{"   {return '{';}
 "}"   {return '}';}
@@ -229,10 +220,6 @@ f[aA][lL][sS][eE]   {
     return (STR_CONST);
 }
 
-/*
- * Integers and idenfitiers, note the difference between type identifier
- * and object identifier
-*/
 
 {number}    {
     cool_yylval.symbol = inttable.add_string(yytext);
