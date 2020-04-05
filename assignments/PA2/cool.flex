@@ -57,8 +57,7 @@ DARROW      =>
 ASSIGN      <-
 LE          <=  
 
-digit       [0-9]
-number      {digit}+
+number      [0-9]+
 typeid      [A-Z][A-Za-z0-9_]*
 objid       [a-z][A-Za-z0-9_]*
 newline     \n
@@ -106,6 +105,24 @@ whitespace  [ \t\v\r\f]+
 {ASSIGN}    {return (ASSIGN);}
 {LE}        {return (LE);}
 
+
+"{"			{ return '{'; }
+"}"			{ return '}'; }
+"("			{ return '('; }
+")"			{ return ')'; }
+"~"			{ return '~'; }
+","			{ return ','; }
+";"			{ return ';'; }
+":"			{ return ':'; }
+"+"			{ return '+'; }
+"-"			{ return '-'; }
+"*"			{ return '*'; }
+"/"			{ return '/'; }
+"%"			{ return '%'; }
+"."			{ return '.'; }
+"<"			{ return '<'; }
+"="			{ return '='; }
+"@"			{ return '@'; }
 
  /*
   * Keywords are case-insensitive except for the values true and false,
@@ -196,7 +213,6 @@ f[aA][lL][sS][eE]   {
     return (OBJECTID);
 }
 
-[^A-za-z0-9+\-*/~=\(\)<;:\.,@\{\}]  {yytext[1] = 0; cool_yylval.error_msg = yytext; return ERROR; }
-.   {return yytext[0];}
+.   {cool_yylval.error_msg = yytext; return ERROR; }
 
 %%
