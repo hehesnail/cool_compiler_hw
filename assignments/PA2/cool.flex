@@ -118,7 +118,6 @@ whitespace  [ \t\v\r\f]+
 "-"			{ return '-'; }
 "*"			{ return '*'; }
 "/"			{ return '/'; }
-"%"			{ return '%'; }
 "."			{ return '.'; }
 "<"			{ return '<'; }
 "="			{ return '='; }
@@ -146,12 +145,12 @@ whitespace  [ \t\v\r\f]+
 (?i:of)       {return OF;}
 (?:not)       {return NOT;}
 
-t[rR][uU][eE]   {
+t(?i:rue)   {
       cool_yylval.boolean = 1;
       return (BOOL_CONST);
 }
 
-f[aA][lL][sS][eE]   {
+f(?i:alse)   {
       cool_yylval.boolean = 0;
       return (BOOL_CONST);
 }
