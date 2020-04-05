@@ -60,6 +60,8 @@ objid       [a-z][A-Za-z0-9_]*
 newline     \n
 whitespace  [ \t\v\r\f]+
 
+%x comment1, comment2, string
+
 %%
 
 /*
@@ -72,6 +74,29 @@ whitespace  [ \t\v\r\f]+
  /*
   *  Nested comments
   */
+"--"    {BEGIN(comment1);}
+"(*"    {BEGIN(comment2);}
+"*)"    {
+    strcpy(cool_yylval.error_msg, "Unmatched *)");
+    return (ERROR);
+}
+
+<comment1>\n   {
+    BGEIN(0); 
+    curr_lineno++;
+}
+
+<comment2>\n   {curr_lineno++;}
+<comment2><<EOF>> {
+    strcpy(cool_yylval.error_msg, "EOF in comment");
+    return (ERROR);
+}
+<comment2>"*"+")"   {
+    BEGIN(0);
+}
+
+<comment1>.   { /*skip the comments started with -- */ }
+<comment2>.   { /*skip the comments in (*...*) */ }
 
 /*
  * The single-character operator
@@ -143,8 +168,66 @@ f[aA][lL][sS][eE]   {
   *
   */
 
+\"  {
+    memset(string_buf, 0, sizeof(string_buf));
+    string_buf_ptr = string_buf;
+    BEGIN(string);
+}
 
+<string>\n    {
+    curr_lineno++;
+    strcpy(cool_yylval.error_msg, "Unterminated string constant");
+    BEGIN(0);
+    return (ERROR);
+}
 
+<string>\\\n  {
+    curr_lineno++;
+}
+
+<string><<EOF>> {
+    strcpy(cool_yylval.error_msg, "EOF in string constant");
+    BEGIN(0);
+    return (ERROR);
+}
+
+<string>\\. {
+    if ((string_buf_ptr - string_buf) >= MAX_STR_CONST) {
+        strcpy(cool_yylval.error_msg, "String constant too long");
+        BEGIN(0);
+        return (ERROR);
+    }
+    switch(yytext[1]) {
+      case '\"': *string_buf_ptr++ = '\"'; break;
+      case '\\': *string_buf_ptr++ = '\\'; break;
+      case 'n': *string_buf_ptr++ = '\n'; break;
+      case 'b': *string_buf_ptr++ = '\b'; break;
+      case 'f': *string_buf_ptr++ = '\f'; break;
+      case 't': *string_buf_ptr++ = '\t'; break;
+      case '0': *string_buf_ptr++ = 0; 
+                strcpy(cool_yylval.error_msg, "String contains null character");
+                BEGIN(0);
+                return (ERROR);
+                break;
+      default:  *string_buf_ptr++ = yytext[1];
+                break;
+    }
+}
+
+<string>. {
+    if ((string_buf_ptr - string_buf) >= MAX_STR_CONST) {
+        strcpy(cool_yylval.error_msg, "String constant too long");
+        BEGIN(0);
+        return (ERROR);
+    }
+    *string_buf_ptr++ = yytext[0];
+}
+
+<string>\"  {
+    cool_yylval.symbol = stringtable.add_string(string_buf);
+    BEGIN(0);
+    return (STR_CONST);
+}
 
 /*
  * Integers and idenfitiers, note the difference between type identifier
@@ -166,5 +249,9 @@ f[aA][lL][sS][eE]   {
     return (OBJECTID);
 }
 
+.     {
+    strcpy(cool_yylval.error_msg, yytext);
+    return (ERROR);
+}
 
 %%
