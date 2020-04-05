@@ -63,7 +63,7 @@ objid       [a-z][A-Za-z0-9_]*
 newline     \n
 whitespace  [ \t\v\r\f]+
 
-%x comment1, comment2, string
+%x comment1 comment2 string
 
 %%
 
