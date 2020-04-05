@@ -43,6 +43,9 @@ extern YYSTYPE cool_yylval;
  *  Add Your own definitions here
  */
 
+int str_len;
+bool str_with_null;
+
 %}
 
 /*
@@ -69,8 +72,8 @@ whitespace  [ \t\v\r\f]+
 {whitespace}  { /*Skip the white spaces*/ }
 
 "--"    {BEGIN(comment1);}
-"(*"    {BEGIN(comment2);}
-"*)"    {
+"(\*"    {BEGIN(comment2);}
+"\*)"    {
     strcpy(cool_yylval.error_msg, "Unmatched *)");
     return (ERROR);
 }
@@ -85,7 +88,7 @@ whitespace  [ \t\v\r\f]+
     strcpy(cool_yylval.error_msg, "EOF in comment");
     return (ERROR);
 }
-<comment2>"*"+")"   {
+<comment2>"\*)"   {
     BEGIN(0);
 }
 
@@ -161,7 +164,8 @@ f[aA][lL][sS][eE]   {
 
 \"  {
     memset(string_buf, 0, sizeof(string_buf));
-    string_buf_ptr = string_buf;
+    str_len = 0;
+    str_with_null = false;
     BEGIN(string);
 }
 
@@ -183,38 +187,41 @@ f[aA][lL][sS][eE]   {
 }
 
 <string>\\. {
-    if ((string_buf_ptr - string_buf) >= MAX_STR_CONST) {
+    if (str_len >= MAX_STR_CONST) {
         strcpy(cool_yylval.error_msg, "String constant too long");
         BEGIN(0);
         return (ERROR);
     }
     switch(yytext[1]) {
-      case '\"': *string_buf_ptr++ = '\"'; break;
-      case '\\': *string_buf_ptr++ = '\\'; break;
-      case 'n': *string_buf_ptr++ = '\n'; break;
-      case 'b': *string_buf_ptr++ = '\b'; break;
-      case 'f': *string_buf_ptr++ = '\f'; break;
-      case 't': *string_buf_ptr++ = '\t'; break;
-      case '0': *string_buf_ptr++ = 0; 
-                strcpy(cool_yylval.error_msg, "String contains null character");
-                BEGIN(0);
-                return (ERROR);
+      case '\"': string_buf[str_len++] = '\"'; break;
+      case '\\': string_buf[str_len++] = '\\'; break;
+      case 'n': string_buf[str_len++] = '\n'; break;
+      case 'b': string_buf[str_len++] = '\b'; break;
+      case 'f': string_buf[str_len++] = '\f'; break;
+      case 't': string_buf[str_len++] = '\t'; break;
+      case '0': string_buf[str_len++] = 0; 
+                str_with_null = true;
                 break;
-      default:  *string_buf_ptr++ = yytext[1];
+      default:  string_buf[str_len++] = yytext[1];
                 break;
     }
 }
 
 <string>. {
-    if ((string_buf_ptr - string_buf) >= MAX_STR_CONST) {
+    if (str_len >= MAX_STR_CONST) {
         strcpy(cool_yylval.error_msg, "String constant too long");
         BEGIN(0);
         return (ERROR);
     }
-    *string_buf_ptr++ = yytext[0];
+    string_buf[str_len++] = yytext[0];
 }
 
 <string>\"  {
+    if (str_len > 1 && str_with_null) {
+        strcpy(cool_yylval.error_msg, "String contains null character");
+        BEGIN(0);
+        return (ERROR);
+    }
     cool_yylval.symbol = stringtable.add_string(string_buf);
     BEGIN(0);
     return (STR_CONST);
