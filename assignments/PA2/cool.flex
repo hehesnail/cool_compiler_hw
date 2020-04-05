@@ -77,22 +77,22 @@ whitespace  [ \t\v\r\f]+
  * The single-character operator
  */
 
-"{"   return {'{';}
-"}"   return {'}';}
-"("   return {'(';}
-")"   return {')';}
-"~"   return {'~';}
-","   return {',';}
-";"   return {';';}
-":"   return {':';}
-"+"   return {'+';}
-"-"   return {'-';}
-"*"   return {'*';}
-"/"   return {'/';}
-"<"   return {'<';}
-"="   return {'=';}
-"."   return {'.';}
-"@"   return {'@';}
+"{"   {return '{';}
+"}"   {return '}';}
+"("   {return '(';}
+")"   {return ')';}
+"~"   {return '~';}
+","   {return ',';}
+";"   {return ';';}
+":"   {return ':';}
+"+"   {return '+';}
+"-"   {return '-';}
+"*"   {return '*';}
+"/"   {return '/';}
+"<"   {return '<';}
+"="   {return '=';}
+"."   {return '.';}
+"@"   {return '@';}
 
 
  /*
