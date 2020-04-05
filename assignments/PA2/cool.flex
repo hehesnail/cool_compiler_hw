@@ -79,7 +79,7 @@ whitespace  [ \t\v\r\f]+
 }
 
 <comment1>\n   {
-    BGEIN(0); 
+    BEGIN(0); 
     curr_lineno++;
 }
 
