@@ -42,14 +42,9 @@ extern YYSTYPE cool_yylval;
 /*
  *  Add Your own definitions here
  */
-#define append_str(char c) \
+#define append_str(c) \
         *(string_buf_ptr++) = c; \ 
-        if (string_buf + MAX_STR_CONST == string_buf_ptr) {
-          BEGIN(string_long);
-          cool_yylval.error_msg = "String constant too long";
-          return ERROR;
-        }
-
+        if (string_buf + MAX_STR_CONST == string_buf_ptr) { BEGIN(string_long); cool_yylval.error_msg = "String constant too long"; return ERROR;}
 int comment_level;
 
 %}
