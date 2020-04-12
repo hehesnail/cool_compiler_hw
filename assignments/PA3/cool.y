@@ -263,6 +263,7 @@
     | OBJECTID ':' TYPEID expr_assign IN expr ',' expr_let
     { $$ = let($1, $3, $5, $6); }
     | error {}
+    ;
     
     /* Expression rule */
     expr : OBJECTID ASSIGN expr 
