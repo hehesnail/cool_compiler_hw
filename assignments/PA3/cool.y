@@ -170,21 +170,21 @@
     ;
     
     class_list
-    : class ';'			/* single class */
+    : class 			/* single class */
     { $$ = single_Classes($1);
     parse_results = $$; }
-    | class_list class ';'	/* several classes */
+    | class_list class 	/* several classes */
     { $$ = append_Classes($1,single_Classes($2)); 
     parse_results = $$; }
+    | error ';' {}
     ;
     
     /* If no parent is specified, the class inherits from the Object class. */
-    class	: CLASS TYPEID '{' dummy_feature_list '}' 
+    class	: CLASS TYPEID '{' dummy_feature_list '}' ';'
     { $$ = class_($2,idtable.add_string("Object"),$4,
     stringtable.add_string(curr_filename)); }
-    | CLASS TYPEID INHERITS TYPEID '{' dummy_feature_list '}' 
+    | CLASS TYPEID INHERITS TYPEID '{' dummy_feature_list '}' ';' 
     { $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
-    | error { }
     ;
     
     /* Feature list may be empty, but no empty features in list. */
@@ -201,6 +201,7 @@
     { $$ = no_expr(); }
     | ASSIGN expr
     { $$ = $2; }
+    ;
 
     /* Feature rule */
     dummy_feature: OBJECTID '(' formal_list ')' ':' TYPEID '{' expr '}'
@@ -217,10 +218,12 @@
     { $$ = single_Formals($1); }
     | formal_list ',' formal_ 
     { $$ = append_Formals($1, single_Formals($3)); }
+    ;
 
     /* Formal rule */
     formal_: OBJECTID ':' TYPEID
     { $$ = formal($1, $3); }
+    ;
 
     /* Expression with comma list rule */
     expr_comma_list: /* Empty */
@@ -229,6 +232,7 @@
     { $$ = single_Expressions($1); }
     | expr_comma_list ',' expr 
     { $$ = append_Expressions($1, single_Expressions($3)); }
+    ;
 
     /* Expression with semicolon list rule */
     expr_semicolon_list: expr ';'
@@ -236,6 +240,7 @@
     | expr_semicolon_list expr ';' 
     { $$ = append_Expressions($1, single_Expressions($2)); }
     | error ';' { }
+    ;
 
     /* Nested let expressions */
     expr_let: OBJECTID ':' TYPEID expr_assign IN expr
@@ -244,15 +249,18 @@
     { $$ = let($1, $3, $4, $6); }
     | error IN expr { }
     | error { }
+    ;
 
     /* Cases branches */
     dummy_case_list: dummy_case ';'
     { $$ = single_Cases($1); }
     | dummy_case_list dummy_case ';'
     { $$ = append_Cases($1, single_Cases($2)); }
+    ;
 
     dummy_case: OBJECTID ':' TYPEID DARROW expr 
     { $$ = branch($1, $3, $5); }
+    ;
     
     /* Expression rule */
     expr : OBJECTID ASSIGN expr 
@@ -303,6 +311,7 @@
     { $$ = string_const($1); }
     | BOOL_CONST
     { $$ = bool_const($1); }
+    ;
     
     
     /* end of grammar */
