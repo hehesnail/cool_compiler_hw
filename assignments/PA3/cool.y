@@ -197,10 +197,10 @@
     ;
 
     /* Expression with possible assign*/
-    expr_assign_list: /* Empty */
+    expr_assign: /* Empty */
     { $$ = no_expr(); }
     | ASSIGN expr
-    { $$ = $3; }
+    { $$ = $2; }
 
     /* Feature rule */
     dummy_feature: OBJECTID '(' formal_list ')' ':' TYPEID '{' expr '}'
@@ -239,9 +239,9 @@
 
     /* Nested let expressions */
     expr_let: OBJECTID ':' TYPEID expr_assign IN expr
-    { $$ = let($1, $3, $5, $6); }
-    | OBJECID ':' TYPEID expr_assign IN expr ',' let
-    { $$ = let($1, $3, $5, $6); }
+    { $$ = let($1, $3, $4, $6); }
+    | OBJECID ':' TYPEID expr_assign IN expr ',' expr_let
+    { $$ = let($1, $3, $4, $6); }
     | error IN expr { }
     | error { }
 
@@ -252,7 +252,7 @@
     { $$ = append_Cases($1, single_Cases($2)); }
 
     dummy_case: OBJECTID ':' TYPEID DARROW expr 
-    { $$ = branch($1, $3, $4); }
+    { $$ = branch($1, $3, $5); }
     
     /* Expression rule */
     expr : OBJECTID ASSIGN expr 
