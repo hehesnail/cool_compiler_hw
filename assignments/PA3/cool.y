@@ -240,7 +240,7 @@
     /* Nested let expressions */
     expr_let: OBJECTID ':' TYPEID expr_assign IN expr
     { $$ = let($1, $3, $4, $6); }
-    | OBJECID ':' TYPEID expr_assign IN expr ',' expr_let
+    | OBJECTID ':' TYPEID expr_assign IN expr ',' expr_let
     { $$ = let($1, $3, $4, $6); }
     | error IN expr { }
     | error { }
