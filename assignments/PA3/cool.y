@@ -136,9 +136,27 @@
     
     /* You will want to change the following line. */
     %type <features> dummy_feature_list
+    %type <feature> dummy_feature
+
+    %type <formals> formal_list
+    %type <formal>  formal_
+    
+    %type <cases> dummy_case_list
+    %type <case_> dummy_case
+    
+    %type <expressions> exp_list
+    %type <expression>  exp
     
     /* Precedence declarations go here. */
-    
+    %right ASSIGN
+    %left NOT
+    %nonassoc LE '<' '='
+    %left '+' '-'
+    %left '*' '/'
+    %left ISVOID
+    %left '~'
+    %left '@'
+    %left '.'
     
     %%
     /* 
