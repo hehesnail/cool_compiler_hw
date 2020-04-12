@@ -259,9 +259,9 @@
     /* Nested Lets*/
     expr_let: 
     OBJECTID ':' TYPEID expr_assign IN expr
-    { $$ = let($1, $3, $5, $6); }
+    { $$ = let($1, $3, $4, $6); }
     | OBJECTID ':' TYPEID expr_assign IN expr ',' expr_let
-    { $$ = let($1, $3, $5, $6); }
+    { $$ = let($1, $3, $4, $6); }
     | error {}
     ;
     
