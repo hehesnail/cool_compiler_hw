@@ -147,6 +147,7 @@
     %type <expressions>  dispatch_list
     %type <expressions>  expr_list
     %type <expression>   expr_let
+    %type <expression>   expr_assign
     %type <expression>   expr
 
     
@@ -247,6 +248,21 @@
     dummy_case  : OBJECTID ':' TYPEID DARROW expr ';'
     { $$ = branch($1, $3, $5); }
     ;
+
+    /* Expression with possible assign*/
+    expr_assign: /* Empty */
+    { $$ = no_expr(); }
+    | ASSIGN expr
+    { $$ = $2; }
+    ;
+
+    /* Nested Lets*/
+    expr_let: 
+    OBJECTID ':' TYPEID expr_assign IN expr
+    { $$ = let($1, $3, $5, $6); }
+    | OBJECTID ':' TYPEID expr_assign IN expr ',' expr_let
+    { $$ = let($1, $3, $5, $6); }
+    | error {}
     
     /* Expression rule */
     expr : OBJECTID ASSIGN expr 
@@ -266,22 +282,8 @@
     | '{' expr_list '}' 
     { $$ = block($2); }
 
-    | OBJECTID ':' TYPEID ',' expr
-    { $$ = let($1, $3, no_expr(), $5); }
-    | OBJECTID ':' TYPEID IN expr
-    { $$ = let($1, $3, no_expr(), $5); }
-    | LET OBJECTID ':' TYPEID ',' expr 
-    { $$ = let($2, $4, no_expr(), $6); }
-    | OBJECTID ':' TYPEID ASSIGN expr ',' expr
-    { $$ = let($1,$3,$5,$7); }
-    | OBJECTID ':' TYPEID ASSIGN expr IN expr
-    { $$ = let($1,$3,$5,$7); }
-    | LET OBJECTID ':' TYPEID ASSIGN expr ',' expr
-    { $$ = let($2,$4,$6,$8); }
-    | LET OBJECTID ':' TYPEID IN expr
-    { $$ = let($2,$4,no_expr(),$6); }
-    | LET OBJECTID ':' TYPEID ASSIGN expr IN expr
-    { $$ = let($2,$4,$6,$8); }
+    | LET expr_let
+    { $$ = $2;}
 
     | CASE expr OF dummy_case_list ESAC 
     { $$ = typcase($2, $4); }
