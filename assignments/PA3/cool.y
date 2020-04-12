@@ -144,9 +144,8 @@
     %type <cases> dummy_case_list
     %type <case_> dummy_case
     
-    %type <expressions>  expr_comma_list
-    %type <expressions>  expr_semicolon_list
-    %type <expression>   expr_assign
+    %type <expressions>  dispatch_list
+    %type <expressions>  expr_list
     %type <expression>   expr_let
     %type <expression>   expr
 
@@ -188,31 +187,24 @@
     ;
     
     /* Feature list may be empty, but no empty features in list. */
-    dummy_feature_list:		/* empty */
+    dummy_feature_list  :		/* empty */
     {  $$ = nil_Features(); }
-    | dummy_feature ';'
-    {  $$ = single_Features($1);}
-    | dummy_feature_list dummy_feature ';'
+    | dummy_feature_list dummy_feature 
     { $$ = append_Features($1, single_Features($2)); }
-    ;
-
-    /* Expression with possible assign*/
-    expr_assign: /* Empty */
-    { $$ = no_expr(); }
-    | ASSIGN expr
-    { $$ = $2; }
+    | error ';' {}
     ;
 
     /* Feature rule */
-    dummy_feature: OBJECTID '(' formal_list ')' ':' TYPEID '{' expr '}'
+    dummy_feature : OBJECTID ':' TYPEID ';'
+    { $$ = attr($1, $3, no_expr()); } 
+    | OBJECTID ':' TYPEID ASSIGN expr ';'
+    { $$ = attr($1, $3, $5); }
+    | OBJECTID '(' formal_list ')' ':' TYPEID '{' expr '}' ';'
     { $$ = method($1, $3, $6, $8); }
-    | OBJECTID ':' TYPEID expr_assign
-    { $$ = attr($1, $3, $4); }
-    | error { }
     ;
 
     /* Formal list rule */
-    formal_list: /* empty */
+    formal_list :  /* empty */
     { $$ = nil_Formals(); }
     | formal_ 
     { $$ = single_Formals($1); }
@@ -221,62 +213,76 @@
     ;
 
     /* Formal rule */
-    formal_: OBJECTID ':' TYPEID
+    formal_ : OBJECTID ':' TYPEID
     { $$ = formal($1, $3); }
     ;
 
-    /* Expression with comma list rule */
-    expr_comma_list: /* Empty */
+    /* Dispatch list rule */
+    dispatch_list : /* Empty */
     { $$ = nil_Expressions(); }
     | expr
     { $$ = single_Expressions($1); }
-    | expr_comma_list ',' expr 
+    | dispatch_list ',' expr 
     { $$ = append_Expressions($1, single_Expressions($3)); }
+    | dispatch_list error ';' {}
     ;
 
     /* Expression with semicolon list rule */
-    expr_semicolon_list: expr ';'
+    expr_list : expr ';'
     { $$ = single_Expressions($1); }
-    | expr_semicolon_list expr ';' 
+    | expr_list expr ';' 
     { $$ = append_Expressions($1, single_Expressions($2)); }
-    | error ';' { }
-    ;
-
-    /* Nested let expressions */
-    expr_let: OBJECTID ':' TYPEID expr_assign IN expr
-    { $$ = let($1, $3, $4, $6); }
-    | OBJECTID ':' TYPEID expr_assign IN expr ',' expr_let
-    { $$ = let($1, $3, $4, $6); }
-    | error IN expr { }
-    | error { }
+    | expr_list error ';' {}
+    | expr_list error {}
+    | error ';' {}
     ;
 
     /* Cases branches */
-    dummy_case_list: dummy_case ';'
-    { $$ = single_Cases($1); }
-    | dummy_case_list dummy_case ';'
+    dummy_case_list : /* Empty */
+    { $$ = nil_Cases(); }
+    | dummy_case_list dummy_case 
     { $$ = append_Cases($1, single_Cases($2)); }
     ;
 
-    dummy_case: OBJECTID ':' TYPEID DARROW expr 
+    dummy_case  : OBJECTID ':' TYPEID DARROW expr ';'
     { $$ = branch($1, $3, $5); }
     ;
     
     /* Expression rule */
     expr : OBJECTID ASSIGN expr 
     { $$ = assign($1, $3); }
-    | expr '@' TYPEID '.' OBJECTID '(' expr_comma_list ')'
+
+    | expr '@' TYPEID '.' OBJECTID '(' dispatch_list ')'
     { $$ = static_dispatch($1, $3, $5, $7); }
-    | OBJECTID '(' expr_comma_list ')'
+    | expr '.' OBJECTID '(' dispatch_list ')'
+    { $$ = dispatch($1, $3, $5); }
+    | OBJECTID '(' dispatch_list ')'
     { $$ = dispatch(object(idtable.add_string("self")) , $1, $3); }
+
     | IF expr THEN expr ELSE expr FI 
     { $$ = cond($2, $4, $6); }
     | WHILE expr LOOP expr POOL 
     { $$ = loop($2, $4); }
-    | '{' expr_semicolon_list '}' 
+    | '{' expr_list '}' 
     { $$ = block($2); }
-    | LET expr_let
-    { $$ = $2; }
+
+    | OBJECTID ':' TYPEID ',' expr
+    { $$ = let($1, $3, no_expr(), $5); }
+    | OBJECTID ':' TYPEID IN expr
+    { $$ = let($1, $3, no_expr(), $5); }
+    | LET OBJECTID ':' TYPEID ',' expr 
+    { $$ = let($2, $4, no_expr(), $6); }
+    | OBJECTID ':' TYPEID ASSIGN expr ',' expr
+    { $$ = let($1,$3,$5,$7); }
+    | OBJECTID ':' TYPEID ASSIGN expr IN expr
+    { $$ = let($1,$3,$5,$7); }
+    | LET OBJECTID ':' TYPEID ASSIGN expr ',' expr
+    { $$ = let($2,$4,$6,$8); }
+    | LET OBJECTID ':' TYPEID IN expr
+    { $$ = let($2,$4,no_expr(),$6); }
+    | LET OBJECTID ':' TYPEID ASSIGN expr IN expr
+    { $$ = let($2,$4,$6,$8); }
+
     | CASE expr OF dummy_case_list ESAC 
     { $$ = typcase($2, $4); }
     | NEW TYPEID 
