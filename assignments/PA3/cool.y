@@ -191,7 +191,7 @@
     dummy_feature_list:		/* empty */
     {  $$ = nil_Features(); }
     | dummy_feature ';'
-    {  $$ = single_Features();}
+    {  $$ = single_Features($1);}
     | dummy_feature_list dummy_feature ';'
     { $$ = append_Features($1, single_Features($2)); }
     ;
@@ -226,13 +226,13 @@
     expr_comma_list: /* Empty */
     { $$ = nil_Expressions(); }
     | expr
-    { $$ = single_Expressions(); }
+    { $$ = single_Expressions($1); }
     | expr_comma_list ',' expr 
     { $$ = append_Expressions($1, single_Expressions($3)); }
 
     /* Expression with semicolon list rule */
     expr_semicolon_list: expr ';'
-    { $$ = single_Expressions(); }
+    { $$ = single_Expressions($1); }
     | expr_semicolon_list expr ';' 
     { $$ = append_Expressions($1, single_Expressions($2)); }
     | error ';' { }
