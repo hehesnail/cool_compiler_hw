@@ -18,9 +18,11 @@
 typedef class Program_class *Program;
 
 class Program_class : public tree_node {
+   
 public:
    tree_node *copy()		 { return copy_Program(); }
    virtual Program copy_Program() = 0;
+   virtual int check_inheritance() = 0; // 1 if there is a circle, 0 if not 
 
 #ifdef Program_EXTRAS
    Program_EXTRAS
@@ -35,6 +37,8 @@ class Class__class : public tree_node {
 public:
    tree_node *copy()		 { return copy_Class_(); }
    virtual Class_ copy_Class_() = 0;
+   virtual Symbol get_name() = 0; //used for constructing inheritance graph
+   virtual Symbol get_parent() = 0; // used for constructing inheritance graph
 
 #ifdef Class__EXTRAS
    Class__EXTRAS
@@ -129,12 +133,14 @@ typedef Cases_class *Cases;
 class program_class : public Program_class {
 protected:
    Classes classes;
+
 public:
    program_class(Classes a1) {
       classes = a1;
    }
    Program copy_Program();
    void dump(ostream& stream, int n);
+   int check_inheritance();
 
 #ifdef Program_SHARED_EXTRAS
    Program_SHARED_EXTRAS
@@ -161,6 +167,8 @@ public:
    }
    Class_ copy_Class_();
    void dump(ostream& stream, int n);
+   Symbol get_name() { return name; }
+   Symbol get_parent() { return parent; }
 
 #ifdef Class__SHARED_EXTRAS
    Class__SHARED_EXTRAS

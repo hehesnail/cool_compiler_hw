@@ -5,6 +5,8 @@
 #include <stdarg.h>
 #include "semant.h"
 #include "utilities.h"
+#include <map>
+#include <set>
 
 
 extern int semant_debug;
@@ -81,12 +83,17 @@ static void initialize_constants(void)
     val         = idtable.add_string("_val");
 }
 
+ClassTable* classtable;
+SymbolTable<char*, Entry>* symboltable;
+SymbolTable<char*, Class__class>* ctable;
+// The cur_class points to the current class of the scope, used for SELF_TYPE
+Class_ cur_class;
 
 
 ClassTable::ClassTable(Classes classes) : semant_errors(0) , error_stream(cerr) {
 
     /* Fill this in */
-    this->classes = classes;
+    this->classes = classes->copy_list();
 }
 
 void ClassTable::install_basic_classes() {
@@ -237,6 +244,136 @@ ostream& ClassTable::semant_error()
      errors. Part 2) can be done in a second stage, when you want
      to build mycoolc.
  */
+
+
+/*  The inheritance graph class 
+    The inheritance graph should:
+        1). Store the inheritances between classes 
+        2). Determine whether there is a circle 
+        3). Determine the conformance(Def 4.1 in Page 6) between two symbols
+        4). Obtain least upper bound of two types
+*/
+
+class inherit_graph {
+private:
+    std::map<Symbol, Symbol> graph;
+
+public:
+    void add_Edge(const Symbol&, const Symbol&);
+    int check_circle();
+    int check_conformace(const Symbol&, const Symbol&);
+    Symbol lub(Symbol a, Symbol b);
+} *g;
+
+void inherit_graph::add_Edge(const Symbol &child, const Symbol &parent) {
+    if (graph.count(child) > 0) { return; }
+    graph[child] = parent;
+}
+
+//If there exists a path from one source to itself, thus there is a circle
+// Return 1 if exitst circle; 0 if NO circle
+int inherit_graph::check_circle() {
+    for (auto sym_iter = graph.begin(); sym_iter != graph.end(); sym_iter++) {
+        Symbol child = sym_iter->first;
+        Symbol parent = sym_iter->second;
+        std::set<Symbol> visited;
+        visited.insert(child);
+
+        while (parent != Object) {
+            // Already visited means a circle
+            if (visited.count(parent) != 0) {
+                return 1;
+            }
+
+            visited.insert(parent); // mask the parent visited.
+            child = parent; 
+            parent = graph[child];
+        }
+    }
+
+    return 0; // No cirlce, return 0
+}
+
+//If a conforms b, return 1; else return 0;
+int inherit_graph::check_conformace(const Symbol &a, const Symbol &b) {
+    if (a == b) return 1;
+    Symbol temp = a;
+
+    //The type of SELF_TYPE is class type 
+    if (temp == SELF_TYPE)  { temp = cur_class->get_name(); }
+    //Test whether a is the sub-class of b
+    while(temp != Object) {
+        if (temp == b) {
+            return 1;
+        }
+        temp = graph[temp];
+    }
+
+    return temp == b;
+}
+
+//Return the least common ancestor of two classes based on Def in Page 11
+Symbol inherit_graph::lub(Symbol a, Symbol b) {
+    if (a == b) return a;
+    if (a == SELF_TYPE) a = cur_class->get_name();
+    if (b == SELF_TYPE) b = cur_class->get_name();
+
+    int height_a = 0, height_b = 0;
+    Symbol temp_a = a, temp_b = b;
+
+    //Calculate the height of a in inheritance graph
+    while (temp_a != Object) {
+        height_a++;
+        temp_a = graph[temp_a];
+    }
+
+    //Calculate the height of b in inheritance graph
+    while (temp_b != Object) {
+        height_b++;
+        temp_b = graph[temp_b];
+    }
+    
+    if (height_a >= height_b) {
+        for (int i = height_a - height_b; i >= 0; i--) {
+            a = graph[a];
+        }
+    } else {
+        for (int i = height_b - height_a; i >= 0; i--) {
+            b = graph[b];
+        }
+    }
+
+    while (a != b) {
+        a = graph[a];
+        b = graph[b];
+    }
+
+    return a;
+}
+
+/*To check the inheritance of classes in program_class
+    1). create the inherit graph
+    2). add inheritance of basic classes
+    3). add inheritance among classes in program_class
+    4). check whether there exists a circle in graph
+*/
+int program_class::check_inheritance() {
+    g = new inherit_graph();
+    
+    g->add_Edge(IO, Object);
+    g->add_Edge(Int, Object);
+    g->add_Edge(Bool, Object);
+    g->add_Edge(Str, Object);
+
+    for (int i = classes->first(); classes->more(i); i = classes->next(i)) {
+        cur_class = classes->nth(i);
+        Symbol cur_c = cur_class->get_name(), cur_p = cur_class->get_parent();
+        g->add_Edge(cur_c, cur_p);
+    }
+
+    return g->check_circle(); // 1 if a circle, 0 if no circle
+}
+
 void program_class::semant()
 {
     initialize_constants();
