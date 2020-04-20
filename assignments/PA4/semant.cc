@@ -86,7 +86,7 @@ static void initialize_constants(void)
 ClassTable::ClassTable(Classes classes) : semant_errors(0) , error_stream(cerr) {
 
     /* Fill this in */
-
+    this->classes = classes;
 }
 
 void ClassTable::install_basic_classes() {
