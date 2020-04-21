@@ -340,11 +340,11 @@ Symbol inherit_graph::lub(Symbol a, Symbol b) {
     }
     
     if (height_a >= height_b) {
-        for (int i = height_a - height_b; i >= 0; i--) {
+        for (int i = height_a - height_b; i > 0; i--) {
             a = graph[a];
         }
     } else {
-        for (int i = height_b - height_a; i >= 0; i--) {
+        for (int i = height_b - height_a; i > 0; i--) {
             b = graph[b];
         }
     }
