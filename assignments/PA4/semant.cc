@@ -7,6 +7,7 @@
 #include "utilities.h"
 #include <map>
 #include <set>
+#include <iostream>
 
 
 extern int semant_debug;
@@ -263,6 +264,7 @@ public:
     int check_circle();
     int check_conformace(const Symbol&, const Symbol&);
     Symbol lub(Symbol a, Symbol b);
+    void print();
 } *g;
 
 void inherit_graph::add_Edge(const Symbol &child, const Symbol &parent) {
@@ -273,7 +275,7 @@ void inherit_graph::add_Edge(const Symbol &child, const Symbol &parent) {
 //If there exists a path from one source to itself, thus there is a circle
 // Return 1 if exitst circle; 0 if NO circle
 int inherit_graph::check_circle() {
-    for (auto sym_iter = graph.begin(); sym_iter != graph.end(); sym_iter++) {
+    for (std::map<Symbol,Symbol>::iterator sym_iter = graph.begin(); sym_iter != graph.end(); sym_iter++) {
         Symbol child = sym_iter->first;
         Symbol parent = sym_iter->second;
         std::set<Symbol> visited;
@@ -285,6 +287,7 @@ int inherit_graph::check_circle() {
                 return 1;
             }
 
+            std::cout << "Edge: " << child->get_string()<< " -> " << parent->get_string() << std::endl;
             visited.insert(parent); // mask the parent visited.
             child = parent; 
             parent = graph[child];
@@ -351,6 +354,14 @@ Symbol inherit_graph::lub(Symbol a, Symbol b) {
     return a;
 }
 
+void inherit_graph::print() {
+    for (std::map<Symbol, Symbol>::iterator i = graph.begin(); i != graph.end(); i++) {
+        Symbol a = i->first;
+        Symbol b = i->second;
+        std::cout << "Edge: "  << a->get_string() << "->" << b->get_string() << std::endl;
+    }
+}
+
 /*To check the inheritance of classes in program_class
     1). create the inherit graph
     2). add inheritance of basic classes
@@ -371,6 +382,8 @@ int program_class::check_inheritance() {
         g->add_Edge(cur_c, cur_p);
     }
 
+    g->print();
+    std::cout << "Check circle" << std::endl;
     return g->check_circle(); // 1 if a circle, 0 if no circle
 }
 
@@ -380,6 +393,8 @@ void program_class::semant()
 
     /* ClassTable constructor may do some semantic analysis */
     ClassTable *classtable = new ClassTable(classes);
+
+    check_inheritance();
 
     /* some semantic analysis code may go here */
 
