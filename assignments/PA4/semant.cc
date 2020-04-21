@@ -85,7 +85,9 @@ static void initialize_constants(void)
 }
 
 ClassTable* classtable;
+//SymbolTable for identifiers, Entry here because of ScopeEntry *addid(SYM s, DAT *i)
 SymbolTable<char*, Entry>* symboltable;
+//SymbolTable for classes
 SymbolTable<char*, Class__class>* ctable;
 // The cur_class points to the current class of the scope, used for SELF_TYPE
 Class_ cur_class;
@@ -130,6 +132,7 @@ void ClassTable::install_basic_classes() {
 					       single_Features(method(type_name, nil_Formals(), Str, no_expr()))),
 			       single_Features(method(copy, nil_Formals(), SELF_TYPE, no_expr()))),
 	       filename);
+    ctable->addid(Object->get_string(), Object_class);
 
     // 
     // The IO class inherits from Object. Its methods are
@@ -151,6 +154,7 @@ void ClassTable::install_basic_classes() {
 					       single_Features(method(in_string, nil_Formals(), Str, no_expr()))),
 			       single_Features(method(in_int, nil_Formals(), Int, no_expr()))),
 	       filename);  
+    ctable->addid(IO->get_string(), IO_class);
 
     //
     // The Int class has no methods and only a single attribute, the
@@ -161,12 +165,14 @@ void ClassTable::install_basic_classes() {
 	       Object,
 	       single_Features(attr(val, prim_slot, no_expr())),
 	       filename);
+    ctable->addid(Int->get_string(), Int_class);
 
     //
     // Bool also has only the "val" slot.
     //
     Class_ Bool_class =
 	class_(Bool, Object, single_Features(attr(val, prim_slot, no_expr())),filename);
+    ctable->addid(Bool->get_string(), Bool_class);
 
     //
     // The class Str has a number of slots and operations:
@@ -196,6 +202,7 @@ void ClassTable::install_basic_classes() {
 						      Str, 
 						      no_expr()))),
 	       filename);
+    ctable->addid(Str->get_string(), Str_class);
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -261,12 +268,12 @@ private:
 
 public:
     void add_Edge(const Symbol&, const Symbol&);
-    int check_circle();
-    int check_conformace(const Symbol&, const Symbol&);
+    bool check_circle();
+    bool check_conformace(const Symbol&, const Symbol&);
     Symbol lub(Symbol a, Symbol b);
-    void print();
-    void test_lub();
-    void test_conformance();
+    void print(); //print the graph for test
+    void test_lub(); // only for test
+    void test_conformance(); // only for test
 } *g;
 
 void inherit_graph::add_Edge(const Symbol &child, const Symbol &parent) {
@@ -275,8 +282,8 @@ void inherit_graph::add_Edge(const Symbol &child, const Symbol &parent) {
 }
 
 //If there exists a path from one source to itself, thus there is a circle
-// Return 1 if exitst circle; 0 if NO circle
-int inherit_graph::check_circle() {
+// Return true if exitst circle; false if NO circle
+bool inherit_graph::check_circle() {
     for (std::map<Symbol,Symbol>::iterator sym_iter = graph.begin(); sym_iter != graph.end(); sym_iter++) {
         Symbol child = sym_iter->first;
         Symbol parent = sym_iter->second;
@@ -286,22 +293,22 @@ int inherit_graph::check_circle() {
         while (parent != Object) {
             // Already visited means a circle
             if (visited.count(parent) != 0) {
-                std::cout << "Circle on " << parent->get_string() << std::endl;
-                return 1;
+                // std::cout << "Circle on " << parent->get_string() << std::endl;
+                return true;
             }
 
-            std::cout << "Edge: " << child->get_string()<< " -> " << parent->get_string() << std::endl;
+            // std::cout << "Edge: " << child->get_string()<< " -> " << parent->get_string() << std::endl;
             visited.insert(parent); // mask the parent visited.
             child = parent; 
             parent = graph[child];
         }
     }
 
-    return 0; // No cirlce, return 0
+    return false; // No cirlce, return false
 }
 
-//If a conforms b, return 1; else return 0;
-int inherit_graph::check_conformace(const Symbol &a, const Symbol &b) {
+//If a conforms b, return true; else return false;
+bool inherit_graph::check_conformace(const Symbol &a, const Symbol &b) {
     if (a == b) return 1;
     Symbol temp = a;
 
@@ -310,7 +317,7 @@ int inherit_graph::check_conformace(const Symbol &a, const Symbol &b) {
     //Test whether a is the sub-class of b
     while(temp != Object) {
         if (temp == b) {
-            return 1;
+            return true;
         }
         temp = graph[temp];
     }
@@ -357,36 +364,42 @@ Symbol inherit_graph::lub(Symbol a, Symbol b) {
     return a;
 }
 
+
+// Only used for test
 void inherit_graph::print() {
     for (std::map<Symbol, Symbol>::iterator i = graph.begin(); i != graph.end(); i++) {
         Symbol a = i->first;
         Symbol b = i->second;
-        std::cout << "Edge: "  << a->get_string() << "->" << b->get_string() << std::endl;
+        cout << "Edge: "  << a->get_string() << "->" << b->get_string() << endl;
     }
 }
 
+// Only used for test
 void inherit_graph::test_lub() {
     for (std::map<Symbol, Symbol>::iterator i = graph.begin(); i != graph.end(); i++) {
         for (std::map<Symbol, Symbol>::iterator j = graph.begin(); j != graph.end(); j++) {
             Symbol a = i->first;
             Symbol b = j->first;
-            std::cout << "Lub of "  << a->get_string() << " & " << b->get_string() << " : " << lub(a, b);
-            std::cout << std::endl;
+            cout << "Lub of "  << a->get_string() << " & " << b->get_string() << " : " << lub(a, b);
+            cout << endl;
         }
     }
 }
 
+
+// Only used for test
 void inherit_graph::test_conformance() {
     for (std::map<Symbol, Symbol>::iterator i = graph.begin(); i != graph.end(); i++) {
         for (std::map<Symbol, Symbol>::iterator j = graph.begin(); j != graph.end(); j++) {
             Symbol a = i->first;
             Symbol b = j->first;
             if (check_conformace(a, b)) {
-                std::cout << a->get_string() << " confroms " << b->get_string() << std::endl;
+                cout << a->get_string() << " confroms " << b->get_string() << endl;
             }
         }
     }
 }
+
 
 
 /*To check the inheritance of classes in program_class
@@ -395,7 +408,7 @@ void inherit_graph::test_conformance() {
     3). add inheritance among classes in program_class
     4). check whether there exists a circle in graph
 */
-int program_class::check_inheritance() {
+bool program_class::check_inheritance_circle() {
     g = new inherit_graph();
     
     g->add_Edge(IO, Object);
@@ -409,11 +422,172 @@ int program_class::check_inheritance() {
         g->add_Edge(cur_c, cur_p);
     }
 
-    g->print();
-    g->test_lub();
-    g->test_conformance();
-    std::cout << "Check circle" << std::endl;
-    return g->check_circle(); // 1 if a circle, 0 if no circle
+    // g->print();
+    // g->test_lub();
+    // g->test_conformance();
+    // std::cout << "Check circle" << std::endl;
+    return g->check_circle(); // true if a circle, false if no circle
+}
+
+/* Check the correctness of classes in program
+    1). Circle in inheritance graph 2). Main existence 3). Invalid re-definition
+    4). Invalid inheritance 5). Redefine existed class
+*/
+void program_class::pre_check() {
+
+    //Test if there is circle
+    if (check_inheritance_circle()) {
+        classtable->semant_error(cur_class) << "Circle in inheritance" << endl;
+    }
+
+    bool exist_main = false;
+    for (int i = classes->first(); classes->more(i); i = classes->next(i)) {
+        cur_class = classes->nth(i);
+        char* cur_name = cur_class->get_name()->get_string();
+        char* parent_name = cur_class->get_parent()->get_string();
+
+        if (strcmp(cur_name, "Main") == 0) {
+            exist_main = true;
+        }
+
+        if (strcmp(cur_name, "Object") == 0 || strcmp(cur_name, "Bool") == 0 || 
+            strcmp(cur_name, "Int") == 0 || strcmp(cur_name, "String") == 0 || 
+            strcmp(cur_name, "IO") == 0 ) {
+                classtable->semant_error(cur_class) << "Invalid re-definition" << endl;
+        }
+
+        if (strcmp(parent_name, "Bool") == 0 || strcmp(parent_name, "Int") == 0 ||
+            strcmp(parent_name, "String") == 0 || strcmp(parent_name, "SELF_TYPE") == 0) {
+                classtable->semant_error(cur_class) << "Invalid inheritance" << endl;
+        }
+
+        if (strcmp(cur_name, "SELF_TYPE") == 0) {
+            classtable->semant_error(cur_class) << "Redefine SELF_TYPE" << endl;
+        }
+
+        if (ctable->lookup(cur_name) != NULL) {
+            classtable->semant_error(cur_class) << "Redefine class already exists" << endl;
+        }
+
+        ctable->addid(cur_name, cur_class);
+    }
+
+    if (!exist_main) {
+        classtable->semant_error(cur_class) << "No Main class" << endl;
+    }
+}
+
+/*type checking for program, check all classes in program class*/
+void program_class::type_check() {
+    for (int i = classes->first(); classes->more(i); i = classes->next(i)) {
+        cur_class = classes->nth(i);
+        if (ctable->lookup(cur_class->get_parent()->get_string()) == NULL) {
+            classtable->semant_error(cur_class) << "Inherit from undefined class" << endl;
+        }
+
+        //For each class, traversal the class, check each expr
+        //Each class also denotes a new scope
+        symboltable->enterscope();
+        cur_class->type_check();
+        symboltable->exitscope();
+    }
+}
+
+/*Check the class type rules*/
+void class__class::type_check() {
+    //check type of all features
+    for (int i = features->first(); features->more(i); i = features->next(i)) {
+        Feature feat = features->nth(i);
+        feat->type_check();
+    }
+}
+
+/*Type check rule for the formal class*/
+void formal_class::type_check() {
+    if (symboltable->probe(name->get_string()) != NULL) {
+        classtable->semant_error(cur_class) << "Duplicate names in formal" << endl;
+    }
+
+    if (name == self) {
+        classtable->semant_error(cur_class) << "Self as parameter name is wrong" << endl;
+    }
+
+    if (type_decl == SELF_TYPE) {
+        classtable->semant_error(cur_class) << "SELF_TYPE as parameter type is wrong" << endl;
+    }
+
+    //binding the type with name of parameter, thus change O to O[T/x]
+    symboltable->addid(name->get_string(), type_decl);
+}
+
+/*Type for Int constant is Int*/
+void int_const_class::type_check() {
+    type = Int;
+}
+
+/*Type for bool constant is Bool*/
+void bool_const_class::type_check() {
+    type = Bool;
+}
+
+/*Type for string constant is Str*/
+void string_const_class::type_check() {
+    type = Str;
+}
+
+/*Type for no_expr_class is No_type*/
+void no_expr_class::type_check() {
+    type = No_type;
+}
+
+/*Type check for isvoid*/
+void isvoid_class::type_check() {
+    e1->type_check();
+    type = Bool;
+}
+
+/*Type check for new*/
+void new__class::type_check() {
+    if (type_name == SELF_TYPE) {
+        type = cur_class->get_name();
+    } else {
+        type = type_name;
+    }
+}
+
+/*Type check for equal*/
+void eq_class::type_check() {
+    e1->type_check();
+    e2->type_check();
+
+    if (e1->get_type() == Int) {
+        if (e2->get_type() == Int) {
+            type = Bool;
+        } else {
+            type = Object;
+            classtable->semant_error(cur_class) << "Not all Ints in eq_class" << endl;
+         }
+    }
+
+    if (e1->get_type() == Str) {
+        if (e2->get_type() == Str) {
+            type = Bool;
+        } else {
+            type = Object;
+            classtable->semant_error(cur_class) << "Not all Strs in eq_class" << endl;
+        }
+    }
+
+    if (e1->get_type() == Bool) {
+        if (e2->get_type() == Bool) {
+            type = Bool;
+        } else {
+            type = Object;
+            classtable->semant_error(cur_class) << "Not all bools in eq_class" << endl;
+        }
+    }
+
+    type = Bool;
 }
 
 void program_class::semant()
@@ -421,15 +595,22 @@ void program_class::semant()
     initialize_constants();
 
     /* ClassTable constructor may do some semantic analysis */
-    ClassTable *classtable = new ClassTable(classes);
+    classtable = new ClassTable(classes);
+    
+    ctable = new SymbolTable<char*, Class__class>();
+    ctable->enterscope();
+    classtable->install_basic_classes();
 
-    check_inheritance();
+    symboltable = new SymbolTable<char*, Entry>();
 
-    /* some semantic analysis code may go here */
+    pre_check();
+    type_check();
+
+    ctable->exitscope(); 
 
     if (classtable->errors()) {
-	cerr << "Compilation halted due to static semantic errors." << endl;
-	exit(1);
+        cerr << "Compilation halted due to static semantic errors." << endl; 
+        exit(1);
     }
 }
 
