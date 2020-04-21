@@ -265,6 +265,8 @@ public:
     int check_conformace(const Symbol&, const Symbol&);
     Symbol lub(Symbol a, Symbol b);
     void print();
+    void test_lub();
+    void test_conformance();
 } *g;
 
 void inherit_graph::add_Edge(const Symbol &child, const Symbol &parent) {
@@ -284,6 +286,7 @@ int inherit_graph::check_circle() {
         while (parent != Object) {
             // Already visited means a circle
             if (visited.count(parent) != 0) {
+                std::cout << "Circle on " << parent->get_string() << std::endl;
                 return 1;
             }
 
@@ -362,6 +365,30 @@ void inherit_graph::print() {
     }
 }
 
+void inherit_graph::test_lub() {
+    for (std::map<Symbol, Symbol>::iterator i = graph.begin(); i != graph.end(); i++) {
+        for (std::map<Symbol, Symbol>::iterator j = graph.begin(); j != graph.end(); j++) {
+            Symbol a = i->first;
+            Symbol b = j->first;
+            std::cout << "Lub of "  << a->get_string() << " & " << b->get_string() << " : " << lub(a, b);
+            std::cout << std::endl;
+        }
+    }
+}
+
+void inherit_graph::test_conformance() {
+    for (std::map<Symbol, Symbol>::iterator i = graph.begin(); i != graph.end(); i++) {
+        for (std::map<Symbol, Symbol>::iterator j = graph.begin(); j != graph.end(); j++) {
+            Symbol a = i->first;
+            Symbol b = j->first;
+            if (check_conformace(a, b)) {
+                std::cout << a->get_string() << " confroms " << b->get_string() << std::endl;
+            }
+        }
+    }
+}
+
+
 /*To check the inheritance of classes in program_class
     1). create the inherit graph
     2). add inheritance of basic classes
@@ -383,6 +410,8 @@ int program_class::check_inheritance() {
     }
 
     g->print();
+    g->test_lub();
+    g->test_conformance();
     std::cout << "Check circle" << std::endl;
     return g->check_circle(); // 1 if a circle, 0 if no circle
 }
