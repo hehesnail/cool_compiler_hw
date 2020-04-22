@@ -1,5 +1,3 @@
-
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -589,6 +587,202 @@ void eq_class::type_check() {
 
     type = Bool;
 }
+/*Type check for arithemitic expressions*/
+/*Type check for plus*/
+void plus_class::type_check() {
+    e1->type_check();
+    e2->type_check();
+    if (e1->get_type() == Int && e2->get_type() == Int) {
+        type = Int;
+    } else {
+        type = Object;
+        classtable->semant_error(cur_class) << "Types must be Ints for +" << endl;
+    }
+}
+
+/*Type check for sub*/
+void sub_class::type_check() {
+    e1->type_check();
+    e2->type_check();
+    if (e1->get_type() == Int && e2->get_type() == Int) {
+        type = Int;
+    } else {
+        type = Object;
+        classtable->semant_error(cur_class) << "Types must be Ints for -" << endl;
+    }
+}
+
+/*Type check for mul*/
+void mul_class::type_check() {
+    e1->type_check();
+    e2->type_check();
+    if (e1->get_type() == Int && e2->get_type() == Int) {
+        type = Int;
+    } else {
+        type = Object;
+        classtable->semant_error(cur_class) << "Types must be Ints for *" << endl;
+    }
+}
+
+/*Type check for divide*/
+void divide_class::type_check() {
+    e1->type_check();
+    e2->type_check();
+    if (e1->get_type() == Int && e2->get_type() == Int) {
+        type = Int;
+    } else {
+        type = Object;
+        classtable->semant_error(cur_class) << "Types must be Ints for /" << endl;
+    }
+}
+
+/*Type check for neg*/
+void neg_class::type_check() {
+    e1->type_check();
+    if (e1->get_type() == Int) {
+        type = Int;
+    } else {
+        type = Object;
+        classtable->semant_error(cur_class) << "Type must be Int for neg" << endl;
+    }
+}
+
+/*Type check for comparision expressions*/
+/*Type check for Not*/
+void comp_class::type_check() {
+    e1->type_check();
+    if (e1->get_type() == Bool) {
+        type = Bool;
+    } else {
+        type = Object;
+        classtable->semant_error(cur_class) << "Type for Not must be Bool" << endl;
+    }
+}
+
+/*Type check for <=*/
+void leq_class::type_check() {
+    e1->type_check();
+    e2->type_check();
+    if (e1->get_type() == Int && e2->get_type() == Int) {
+        type = Bool;
+    } else {
+        type = Object;
+        classtable->semant_error(cur_class) << "Types for <= must be Ints" << endl;
+    }
+}
+
+/*Type check for <*/
+void lt_class::type_check() {
+    e1->type_check();
+    e2->type_check();
+
+    if (e1->get_type() == Int && e2->get_type() == Int) {
+        type = Bool;
+    } else {
+        type = Object;
+        classtable->semant_error(cur_class) << "Types for < must be Ints" << endl;
+    }
+}
+
+/*Type check for loop*/
+void loop_class::type_check() {
+    pred->type_check();
+    if (pred->get_type() != Bool) {
+        classtable->semant_error(cur_class) << "Type for pred in loop must be Bool" << endl;
+    }
+    body->type_check();
+    type = Object;
+}
+
+/*Type check for if*/
+void cond_class::type_check() {
+    pred->type_check();
+    then_exp->type_check();
+    else_exp->type_check();
+
+    if (pred->get_type() != Bool) {
+        type = Object;
+        classtable->semant_error(cur_class) << "Type for pred in if must be Bool" << endl;
+    } else {
+        type = g->lub(then_exp->get_type(), else_exp->get_type());
+    }
+}
+
+/*Type check for block*/ 
+void block_class::type_check() {
+    Symbol seq_type;
+    for (int i = body->first(); body->more(i); i = body->next(i)) {
+        Expression e = body->nth(i);
+        e->type_check();
+        seq_type = e->get_type();
+    }
+
+    type = seq_type;
+} 
+
+/*Type check for cases*/
+/*Type check for branch*/
+void branch_class::type_check() {
+    expr->type_check();
+}
+
+/*Type check for case*/
+void typcase_class::type_check() {
+    expr->type_check();
+    Symbol final_type = NULL;
+
+    symboltable->enterscope(); // The object type environment changes
+    for(int i = cases->first(); cases->more(i); i = cases->next(i)) {
+        Case c = cases->nth(i);
+        //Each branch of a case must have distinct types
+        if (symboltable->probe(c->get_type_decl()->get_string()) != NULL) {
+            classtable->semant_error(cur_class) << "Each branch must have distinct types" << endl;
+        }
+        symboltable->addid(c->get_type_decl()->get_string(), c->get_type_decl());
+        c->type_check();
+
+        if (!g->check_conformace(c->get_expr_type(), c->get_type_decl())) {
+            classtable->semant_error(cur_class) << "In each brank, expr type must conform decl type" << endl;
+        }
+
+        if (!final_type) {
+            final_type = c->get_expr_type();
+        } else {
+            final_type = g->lub(final_type, c->get_expr_type());
+        }
+    }
+
+    type = final_type;
+    symboltable->exitscope();
+}
+
+/*Type check for Let expression, note that two cases: let-init, let-no-init*/
+void let_class::type_check() {
+    init->type_check();
+    symboltable->enterscope();
+    Symbol t0;
+    if (type_decl == SELF_TYPE) {
+        t0 = cur_class->get_name();
+    } else {
+        t0 = type_decl;
+    }
+
+    if (init->get_type() == No_type) {
+        //let-no-init case
+        symboltable->addid(identifier->get_string(), t0);
+        body->type_check();
+        type = body->get_type();
+    } else {
+        //let-init case
+        if (!g->check_conformace(init->get_type(), t0)) {
+            classtable->semant_error(cur_class) << "let conformance unsatisfied" << endl;
+        }
+        symboltable->addid(identifier->get_string(), t0);
+        body->type_check();
+        type = body->get_type();
+    }
+}
+
 
 void program_class::semant()
 {
