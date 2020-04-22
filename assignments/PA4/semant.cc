@@ -509,7 +509,7 @@ void class__class::type_check() {
 /*Get attribute of given symbol name*/
 Feature class__class::get_attr(Symbol name) {
     Feature f = NULL;
-    for (int i = features->first(); features->next(i); i = features->more(i)) {
+    for (int i = features->first(); features->more(i); i = features->next(i)) {
         f = features->nth(i);
         if (f->get_formals() == NULL && f->get_feature_name() == name) {
             return f;
@@ -522,7 +522,7 @@ Feature class__class::get_attr(Symbol name) {
 /*Get method of given symbol name*/
 Feature class__class::get_method(Symbol name) {
     Feature f = NULL; 
-    for (int i = features->first(); features->next(i); i = features->more(i)) {
+    for (int i = features->first(); features->more(i); i = features->next(i)) {
         f = features->nth(i);
         if (f->get_formals() != NULL && f->get_feature_name() == name) {
             return f;
@@ -549,6 +549,7 @@ void attr_class::type_check() {
         if (p_class->get_attr(name) != NULL) {
             classtable->semant_error(cur_class) << "override attribute" << endl;
             return;
+            break;
         }
 
         if (p_class->get_parent() == No_class) {
@@ -684,7 +685,7 @@ void dispatch_class::type_check() {
     //type check for expressions, conformance checking
     Formals f_params = f->get_formals();
     Symbol f_return_type = f->get_type();
-    for (int i = actual->first(); actual->more(i); actual->next(i)) {
+    for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
         Expression ei = actual->nth(i);
         ei->type_check();
         Formal fi = f_params->nth(i);
@@ -729,7 +730,7 @@ void static_dispatch_class::type_check() {
     //type check for expressions, conformance checking
     Formals f_params = f->get_formals();
     Symbol f_return_type = f->get_type();
-    for (int i = actual->first(); actual->more(i); actual->next(i)) {
+    for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
         Expression ei = actual->nth(i);
         ei->type_check();
         Formal fi = f_params->nth(i);
