@@ -83,7 +83,7 @@ static void initialize_constants(void)
 }
 
 ClassTable* classtable;
-//SymbolTable for identifiers, Entry here because of ScopeEntry *addid(SYM s, DAT *i)
+//SymbolTable for identifiers, object type environment
 SymbolTable<char*, Entry>* symboltable;
 //SymbolTable for classes
 SymbolTable<char*, Class__class>* ctable;
@@ -452,19 +452,23 @@ void program_class::pre_check() {
             strcmp(cur_name, "Int") == 0 || strcmp(cur_name, "String") == 0 || 
             strcmp(cur_name, "IO") == 0 ) {
                 classtable->semant_error(cur_class) << "Invalid re-definition" << endl;
+                return;
         }
 
         if (strcmp(parent_name, "Bool") == 0 || strcmp(parent_name, "Int") == 0 ||
             strcmp(parent_name, "String") == 0 || strcmp(parent_name, "SELF_TYPE") == 0) {
                 classtable->semant_error(cur_class) << "Invalid inheritance" << endl;
+                return;
         }
 
         if (strcmp(cur_name, "SELF_TYPE") == 0) {
             classtable->semant_error(cur_class) << "Redefine SELF_TYPE" << endl;
+            return;
         }
 
         if (ctable->lookup(cur_name) != NULL) {
             classtable->semant_error(cur_class) << "Redefine class already exists" << endl;
+            return;
         }
 
         ctable->addid(cur_name, cur_class);
@@ -472,6 +476,7 @@ void program_class::pre_check() {
 
     if (!exist_main) {
         classtable->semant_error(cur_class) << "No Main class" << endl;
+        return;
     }
 }
 
@@ -481,6 +486,7 @@ void program_class::type_check() {
         cur_class = classes->nth(i);
         if (ctable->lookup(cur_class->get_parent()->get_string()) == NULL) {
             classtable->semant_error(cur_class) << "Inherit from undefined class" << endl;
+            return;
         }
 
         //For each class, traversal the class, check each expr
@@ -500,22 +506,281 @@ void class__class::type_check() {
     }
 }
 
+/*Get attribute of given symbol name*/
+Feature class__class::get_attr(Symbol name) {
+    Feature f = NULL;
+    for (int i = features->first(); features->next(i); i = features->more(i)) {
+        f = features->nth(i);
+        if (f->get_formals() == NULL && f->get_feature_name() == name) {
+            return f;
+        }
+    }
+
+    return NULL;
+}
+
+/*Get method of given symbol name*/
+Feature class__class::get_method(Symbol name) {
+    Feature f = NULL; 
+    for (int i = features->first(); features->next(i); i = features->more(i)) {
+        f = features->nth(i);
+        if (f->get_formals() != NULL && f->get_feature_name() == name) {
+            return f;
+        }
+    }
+
+    return NULL;
+}
+
+/*Type check for attribute feature*/
+void attr_class::type_check() {
+    if (type_decl == SELF_TYPE) {
+        type_decl = cur_class->get_name();
+    }
+
+    if (name == self) {
+        classtable->semant_error(cur_class) << "bind self to attribute" << endl;
+        return;
+    } 
+
+    //check redefinition of inherited attributes
+    Class_ p_class = ctable->lookup(cur_class->get_parent()->get_string());
+    while(true) {
+        if (p_class->get_attr(name) != NULL) {
+            classtable->semant_error(cur_class) << "override attribute" << endl;
+            return;
+        }
+
+        if (p_class->get_parent() == No_class) {
+            break;
+        }
+        p_class = ctable->lookup(cur_class->get_parent()->get_string());
+    }
+
+    init->type_check();
+    if (!(init->get_type() == No_type) && !(g->check_conformace(init->get_type(), type_decl))) {
+        classtable->semant_error(cur_class) << "Init and type_decl error in attribute" << endl;
+        return;
+    }
+    symboltable->addid(name->get_string(), type_decl);
+}
+
+/*Typr check for method*/
+void method_class::type_check() {
+    symboltable->enterscope();
+
+    if (ctable->lookup(return_type->get_string()) == NULL && return_type != SELF_TYPE) {
+        classtable->semant_error(cur_class) << "Invalid return type" << endl;
+    }
+
+    //check redefinition of method in inheritance
+    Class_ p = ctable->lookup(cur_class->get_parent()->get_string());
+    Feature f = NULL;
+    while(true) {
+        if (p->get_method(name) != NULL) {
+            f = p->get_method(name);
+        }
+        if (p->get_parent() == No_class) {
+            break;
+        }
+        p = ctable->lookup(p->get_parent()->get_string());
+    }
+
+    if (f != NULL) {
+        //return type;
+        Formals formal_params = f->get_formals();
+        // check number of args
+        if (formals->len() != formal_params->len()) {
+            classtable->semant_error(cur_class) << "Override method error: No match len" << endl;
+            return;
+        }
+        //chech types of formals
+        for (int i = formals->first(), j = formal_params->first(); 
+                 formals->more(i) && formal_params->more(j); 
+                 i = formals->next(i), j = formal_params->next(j)) {
+            Formal f1 = formals->nth(i), f2 = formal_params->nth(j);
+
+            f1->type_check();
+            
+            if (f1->get_formal_type() != f2->get_formal_type()) {
+                classtable->semant_error(cur_class) << "Types in overriden method don't match" << endl;
+                return;
+            }
+        }
+        //check return type
+        if (return_type != f->get_type()) {
+            classtable->semant_error(cur_class) << "Return type in overriden method does not match" << endl;
+            return;
+        } 
+    } else {
+        for (int i = formals->first(); formals->more(i); formals->next(i)) {
+            Formal feat = formals->nth(i);
+            feat->type_check();
+        }
+    }
+
+    expr->type_check();
+    Symbol test_type;
+    if (return_type == SELF_TYPE) {
+        test_type = cur_class->get_name();
+    } else {
+        test_type = return_type;
+    }
+    if (!g->check_conformace(expr->get_type(), test_type)) {
+        classtable->semant_error(cur_class) << "Error in method comformance checking" << endl;
+    }
+
+    symboltable->exitscope();
+}
+
 /*Type check rule for the formal class*/
 void formal_class::type_check() {
     if (symboltable->probe(name->get_string()) != NULL) {
         classtable->semant_error(cur_class) << "Duplicate names in formal" << endl;
+        return;
     }
 
     if (name == self) {
         classtable->semant_error(cur_class) << "Self as parameter name is wrong" << endl;
+        return;
     }
 
     if (type_decl == SELF_TYPE) {
         classtable->semant_error(cur_class) << "SELF_TYPE as parameter type is wrong" << endl;
+        return;
     }
 
     //binding the type with name of parameter, thus change O to O[T/x]
     symboltable->addid(name->get_string(), type_decl);
+}
+
+/*Type check for dispatch*/
+void dispatch_class::type_check() {
+    expr->type_check();
+    Symbol t0 = expr->get_type();
+    if (t0 == SELF_TYPE) {
+        t0 = cur_class->get_name();
+    }
+    //Get matched method in e0 and beyond
+    Class_ p = ctable->lookup(t0->get_string());
+    Feature f = p->get_method(name); // feature stores matched method func
+
+    while(true) {
+        if (p->get_method(name) != NULL) {
+            f = p->get_method(name);
+            break;
+        }
+        if (p->get_parent() == No_class) {
+            break;
+        }
+        p = ctable->lookup(p->get_parent()->get_string());
+    }
+
+    if (f == NULL) {
+        classtable->semant_error(cur_class) << "No matched method" << endl;
+        return;
+    }    
+
+    //type check for expressions, conformance checking
+    Formals f_params = f->get_formals();
+    Symbol f_return_type = f->get_type();
+    for (int i = actual->first(); actual->more(i); actual->next(i)) {
+        Expression ei = actual->nth(i);
+        ei->type_check();
+        Formal fi = f_params->nth(i);
+        if (!g->check_conformace(ei->get_type(), fi->get_formal_type())) {
+            classtable->semant_error(cur_class) << "Parameters types don't match" << endl;
+            return;
+        }
+    }
+    if (f_return_type == SELF_TYPE) {
+        f_return_type = expr->get_type();
+    }
+    type = f_return_type;
+}
+
+/*Type check static dispatch*/
+void static_dispatch_class::type_check() {
+    expr->type_check();
+    Symbol e0 = expr->get_type();
+    if (!g->check_conformace(e0, type_name)) {
+        classtable->semant_error(cur_class) << "Error in static dispatch" << endl;
+        return;
+    }
+
+    //Get matched method in typename
+    Class_ p = ctable->lookup(type_name->get_string());
+    Feature f = p->get_method(name);
+    while(true) {
+        if (p->get_method(name) != NULL) {
+            f = p->get_method(name);
+            break;
+        }
+        if (p->get_parent() == No_class) {
+            break;
+        }
+        p = ctable->lookup(p->get_parent()->get_string());
+    }
+    if (f == NULL) {
+        classtable->semant_error(cur_class) << "No match method in static dispatch" << endl;
+        return;
+    }    
+
+    //type check for expressions, conformance checking
+    Formals f_params = f->get_formals();
+    Symbol f_return_type = f->get_type();
+    for (int i = actual->first(); actual->more(i); actual->next(i)) {
+        Expression ei = actual->nth(i);
+        ei->type_check();
+        Formal fi = f_params->nth(i);
+        if (!g->check_conformace(ei->get_type(), fi->get_formal_type())) {
+            classtable->semant_error(cur_class) << "Parameters types don't match in static dispatch" << endl;
+            return;
+        }
+    }
+
+    if (f_return_type == SELF_TYPE) {
+        f_return_type = expr->get_type();
+    }
+    type = f_return_type;
+}
+
+/*Type check for assign*/
+void assign_class::type_check() {
+    if(name == self) {
+        classtable->semant_error(cur_class) << "Error to assign self" << endl;
+        return;
+    }
+
+    Symbol searchtype = symboltable->lookup(name->get_string());
+    Class_ p = cur_class;
+    if (searchtype == NULL) {
+        //check attributes
+        Feature f = p->get_attr(name);
+        while(true) {
+            if (f != NULL) {
+                searchtype = f->get_type();
+                break;
+            }
+            if (p->get_parent() == No_class) {
+                break;
+            }
+            p = ctable->lookup(p->get_parent()->get_string());
+        }
+    } 
+
+    if (searchtype == NULL) {
+        classtable->semant_error(cur_class) << "Error in finding def in assign" << endl;
+        return;
+    }
+
+    expr->type_check();
+    if (!g->check_conformace(expr->get_type(), searchtype)) {
+        classtable->semant_error(cur_class) << "Assign conformance check fail" << endl;
+        return;
+    }
+
+    type = expr->get_type();
 }
 
 /*Type for Int constant is Int*/
@@ -564,6 +829,7 @@ void eq_class::type_check() {
         } else {
             type = Object;
             classtable->semant_error(cur_class) << "Not all Ints in eq_class" << endl;
+            return;
          }
     }
 
@@ -573,6 +839,7 @@ void eq_class::type_check() {
         } else {
             type = Object;
             classtable->semant_error(cur_class) << "Not all Strs in eq_class" << endl;
+            return;
         }
     }
 
@@ -582,6 +849,7 @@ void eq_class::type_check() {
         } else {
             type = Object;
             classtable->semant_error(cur_class) << "Not all bools in eq_class" << endl;
+            return;
         }
     }
 
@@ -597,6 +865,7 @@ void plus_class::type_check() {
     } else {
         type = Object;
         classtable->semant_error(cur_class) << "Types must be Ints for +" << endl;
+        return;
     }
 }
 
@@ -609,6 +878,7 @@ void sub_class::type_check() {
     } else {
         type = Object;
         classtable->semant_error(cur_class) << "Types must be Ints for -" << endl;
+        return;
     }
 }
 
@@ -621,6 +891,7 @@ void mul_class::type_check() {
     } else {
         type = Object;
         classtable->semant_error(cur_class) << "Types must be Ints for *" << endl;
+        return;
     }
 }
 
@@ -633,6 +904,7 @@ void divide_class::type_check() {
     } else {
         type = Object;
         classtable->semant_error(cur_class) << "Types must be Ints for /" << endl;
+        return;
     }
 }
 
@@ -644,6 +916,7 @@ void neg_class::type_check() {
     } else {
         type = Object;
         classtable->semant_error(cur_class) << "Type must be Int for neg" << endl;
+        return;
     }
 }
 
@@ -656,6 +929,7 @@ void comp_class::type_check() {
     } else {
         type = Object;
         classtable->semant_error(cur_class) << "Type for Not must be Bool" << endl;
+        return;
     }
 }
 
@@ -668,6 +942,7 @@ void leq_class::type_check() {
     } else {
         type = Object;
         classtable->semant_error(cur_class) << "Types for <= must be Ints" << endl;
+        return;
     }
 }
 
@@ -681,6 +956,7 @@ void lt_class::type_check() {
     } else {
         type = Object;
         classtable->semant_error(cur_class) << "Types for < must be Ints" << endl;
+        return;
     }
 }
 
@@ -689,6 +965,7 @@ void loop_class::type_check() {
     pred->type_check();
     if (pred->get_type() != Bool) {
         classtable->semant_error(cur_class) << "Type for pred in loop must be Bool" << endl;
+        return;
     }
     body->type_check();
     type = Object;
@@ -703,6 +980,7 @@ void cond_class::type_check() {
     if (pred->get_type() != Bool) {
         type = Object;
         classtable->semant_error(cur_class) << "Type for pred in if must be Bool" << endl;
+        return;
     } else {
         type = g->lub(then_exp->get_type(), else_exp->get_type());
     }
@@ -723,6 +1001,10 @@ void block_class::type_check() {
 /*Type check for cases*/
 /*Type check for branch*/
 void branch_class::type_check() {
+    if (name == self) {
+        classtable->semant_error(cur_class) << "bind self to case" << endl;
+        return;
+    }
     expr->type_check();
 }
 
@@ -737,12 +1019,14 @@ void typcase_class::type_check() {
         //Each branch of a case must have distinct types
         if (symboltable->probe(c->get_type_decl()->get_string()) != NULL) {
             classtable->semant_error(cur_class) << "Each branch must have distinct types" << endl;
+            return;
         }
         symboltable->addid(c->get_type_decl()->get_string(), c->get_type_decl());
         c->type_check();
 
         if (!g->check_conformace(c->get_expr_type(), c->get_type_decl())) {
             classtable->semant_error(cur_class) << "In each brank, expr type must conform decl type" << endl;
+            return;
         }
 
         if (!final_type) {
@@ -758,6 +1042,11 @@ void typcase_class::type_check() {
 
 /*Type check for Let expression, note that two cases: let-init, let-no-init*/
 void let_class::type_check() {
+    if (identifier == self) {
+        classtable->semant_error(cur_class) << "bind self in a let" << endl;
+        return;
+    }
+
     init->type_check();
     symboltable->enterscope();
     Symbol t0;
@@ -776,6 +1065,7 @@ void let_class::type_check() {
         //let-init case
         if (!g->check_conformace(init->get_type(), t0)) {
             classtable->semant_error(cur_class) << "let conformance unsatisfied" << endl;
+            return;
         }
         symboltable->addid(identifier->get_string(), t0);
         body->type_check();
@@ -783,6 +1073,40 @@ void let_class::type_check() {
     }
 }
 
+/*Type check for object type*/
+void object_class::type_check() {
+    if (name = self) {
+        type = SELF_TYPE;
+        return;
+    }
+
+    //check declared identifers
+    Symbol searchtype = symboltable->lookup(name->get_string());
+    if (searchtype == NULL) {
+        Class_ p = cur_class;
+        //check attributes in parent class
+        while(true) {
+            Feature f = p->get_attr(name);
+            if (f != NULL) {
+                searchtype = f->get_type();
+                break;
+            }
+
+            if (p->get_parent() == No_class) {
+                break;
+            }
+
+            p = ctable->lookup(p->get_parent()->get_string());
+        }
+    }
+
+    if (searchtype == NULL) {
+        classtable->semant_error(cur_class) << "Can't find object definition" << endl;
+        return;
+    }
+
+    type = searchtype;
+}
 
 void program_class::semant()
 {

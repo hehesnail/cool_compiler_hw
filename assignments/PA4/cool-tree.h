@@ -42,6 +42,8 @@ public:
    virtual Symbol get_name() = 0; //used for constructing inheritance graph
    virtual Symbol get_parent() = 0; // used for constructing inheritance graph
    virtual void type_check() = 0;
+   virtual Feature get_attr(Symbol) = 0;
+   virtual Feature get_method(Symbol) = 0;
 
 #ifdef Class__EXTRAS
    Class__EXTRAS
@@ -57,6 +59,9 @@ public:
    tree_node *copy()		 { return copy_Feature(); }
    virtual Feature copy_Feature() = 0;
    virtual void type_check() = 0;
+   virtual Formals get_formals() = 0;
+   virtual Symbol get_feature_name() = 0;
+   virtual Symbol get_type() = 0;
 
 #ifdef Feature_EXTRAS
    Feature_EXTRAS
@@ -182,6 +187,8 @@ public:
    Symbol get_name() { return name; }
    Symbol get_parent() { return parent; }
    void type_check();
+   Feature get_attr(Symbol);
+   Feature get_method(Symbol);
 
 #ifdef Class__SHARED_EXTRAS
    Class__SHARED_EXTRAS
@@ -209,6 +216,9 @@ public:
    Feature copy_Feature();
    void dump(ostream& stream, int n);
    void type_check();
+   Formals get_formals() { return formals; }
+   Symbol get_feature_name() { return name; }
+   Symbol get_type() { return return_type; }
 
 #ifdef Feature_SHARED_EXTRAS
    Feature_SHARED_EXTRAS
@@ -234,6 +244,9 @@ public:
    Feature copy_Feature();
    void dump(ostream& stream, int n);
    void type_check();
+   Formals get_formals() { return NULL; }
+   Symbol get_feature_name() { return name; }
+   Symbol get_type() { return type_decl; }
 
 #ifdef Feature_SHARED_EXTRAS
    Feature_SHARED_EXTRAS
