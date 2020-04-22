@@ -1075,7 +1075,7 @@ void let_class::type_check() {
 
 /*Type check for object type*/
 void object_class::type_check() {
-    if (name = self) {
+    if (name == self) {
         type = SELF_TYPE;
         return;
     }
