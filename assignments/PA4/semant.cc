@@ -596,13 +596,10 @@ void method_class::type_check() {
             return;
         }
         //chech types of formals
-        for (int i = formals->first(), j = formal_params->first(); 
-                 formals->more(i) && formal_params->more(j); 
-                 i = formals->next(i), j = formal_params->next(j)) {
-            Formal f1 = formals->nth(i), f2 = formal_params->nth(j);
-
+        for (int i = formals->first(); formals->more(i); i = formals->next(i)) {
+            Formal f1 = formals->nth(i);
             f1->type_check();
-            
+            Formal f2 = formal_params->nth(i);
             if (f1->get_formal_type() != f2->get_formal_type()) {
                 classtable->semant_error(cur_class) << "Types in overriden method don't match" << endl;
                 return;
@@ -614,7 +611,7 @@ void method_class::type_check() {
             return;
         } 
     } else {
-        for (int i = formals->first(); formals->more(i); formals->next(i)) {
+        for (int i = formals->first(); formals->more(i); i = formals->next(i)) {
             Formal feat = formals->nth(i);
             feat->type_check();
         }
