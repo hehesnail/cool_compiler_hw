@@ -545,8 +545,10 @@ void attr_class::type_check() {
 
     //check redefinition of inherited attributes
     Class_ p_class = ctable->lookup(cur_class->get_parent()->get_string());
+    Feature f = NULL;
     while(true) {
-        if (p_class->get_attr(name) != NULL) {
+        f = p_class->get_attr(name);
+        if (f != NULL) {
             classtable->semant_error(cur_class) << "override attribute" << endl;
             return;
             break;
@@ -555,11 +557,11 @@ void attr_class::type_check() {
         if (p_class->get_parent() == No_class) {
             break;
         }
-        p_class = ctable->lookup(cur_class->get_parent()->get_string());
+        p_class = ctable->lookup(p_class->get_parent()->get_string());
     }
 
     init->type_check();
-    if (!(init->get_type() == No_type) && !(g->check_conformace(init->get_type(), type_decl))) {
+    if ((init->get_type() != No_type) && !(g->check_conformace(init->get_type(), type_decl))) {
         classtable->semant_error(cur_class) << "Init and type_decl error in attribute" << endl;
         return;
     }
