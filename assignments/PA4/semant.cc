@@ -435,7 +435,8 @@ void program_class::pre_check() {
 
     //Test if there is circle
     if (check_inheritance_circle()) {
-        classtable->semant_error(cur_class) << "Circle in inheritance" << endl;
+        classtable->semant_error() << "Circle in inheritance" << endl;
+        return;
     }
 
     bool exist_main = false;
@@ -471,10 +472,10 @@ void program_class::pre_check() {
             return;
         }
 
-        ctable->addid(cur_name, cur_class);
+        ctable->addid(cur_class->get_name()->get_string(), cur_class);
     }
 
-    if (!exist_main) {
+    if (exist_main == false) {
         classtable->semant_error() << "No Main class" << endl;
         return;
     }
@@ -561,6 +562,7 @@ void attr_class::type_check() {
     }
 
     init->type_check();
+
     if ((init->get_type() != No_type) && !(g->check_conformace(init->get_type(), type_decl))) {
         classtable->semant_error(cur_class) << "Init and type_decl error in attribute" << endl;
         return;
@@ -574,6 +576,7 @@ void method_class::type_check() {
 
     if (ctable->lookup(return_type->get_string()) == NULL && return_type != SELF_TYPE) {
         classtable->semant_error(cur_class) << "Invalid return type" << endl;
+        return;
     }
 
     //check redefinition of method in inheritance
@@ -753,7 +756,7 @@ void assign_class::type_check() {
         return;
     }
     */
-
+    expr->type_check();
     Symbol searchtype = symboltable->lookup(name->get_string());
     if (searchtype == NULL) {
         //check attributes
@@ -776,7 +779,6 @@ void assign_class::type_check() {
         return;
     }
 
-    expr->type_check();
     if (!g->check_conformace(expr->get_type(), searchtype)) {
         classtable->semant_error(cur_class) << "Assign conformance check fail" << endl;
         return;
@@ -1003,10 +1005,12 @@ void block_class::type_check() {
 /*Type check for cases*/
 /*Type check for branch*/
 void branch_class::type_check() {
-    if (name == self) {
+    /*if (name == self) {
         classtable->semant_error(cur_class) << "bind self to case" << endl;
         return;
     }
+    */
+    symboltable->addid(name->get_string(), type_decl);
     expr->type_check();
 }
 
