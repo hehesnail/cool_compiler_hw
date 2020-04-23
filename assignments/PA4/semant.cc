@@ -471,7 +471,7 @@ void program_class::pre_check() {
     }
 
     if (exist_main == false) {
-        classtable->semant_error() << "No main class "<< endl;
+        classtable->semant_error() << "Class Main is not defined."<< endl;
     }
 }
 
