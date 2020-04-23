@@ -751,11 +751,11 @@ void assign_class::type_check() {
     }
 
     Symbol searchtype = symboltable->lookup(name->get_string());
-    Class_ p = cur_class;
     if (searchtype == NULL) {
         //check attributes
-        Feature f = p->get_attr(name);
+        Class_ p = cur_class;
         while(true) {
+            Feature f = p->get_attr(name);
             if (f != NULL) {
                 searchtype = f->get_type();
                 break;
