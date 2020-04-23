@@ -730,12 +730,11 @@ void static_dispatch_class::type_check() {
 
 /*Type check for assign*/
 void assign_class::type_check() {
-    /*
-    if(strcmp(name->get_string(),  "self") {
-        classtable->semant_error(cur_class) << "Error to assign self" << endl;
-        return;
+    
+    if (name == self) {
+        throw "Error to assign self";
     }
-    */
+    
     expr->type_check();
     Symbol exprtype = expr->get_type();
     Symbol searchtype = symboltable->lookup(name->get_string());
@@ -974,11 +973,11 @@ void block_class::type_check() {
 /*Type check for cases*/
 /*Type check for branch*/
 void branch_class::type_check() {
-    /*if (name == self) {
+    if (name == self) {
         classtable->semant_error(cur_class) << "bind self to case" << endl;
         return;
     }
-    */
+    
     symboltable->addid(name->get_string(), type_decl);
     expr->type_check();
 }
