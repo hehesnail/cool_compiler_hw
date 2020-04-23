@@ -441,29 +441,26 @@ void program_class::pre_check() {
     bool exist_main = false;
     for (int i = classes->first(); classes->more(i); i = classes->next(i)) {
         cur_class = classes->nth(i);
-        char* cur_name = cur_class->get_name()->get_string();
-        char* parent_name = cur_class->get_parent()->get_string();
+        Symbol cur_name = cur_class->get_name();
+        Symbol parent_name = cur_class->get_parent();
 
-        if (strcmp(cur_name, "Main") == 0) {
+        if (cur_name == Main) {
             exist_main = true;
         }
 
-        if (strcmp(cur_name, "Object") == 0 || strcmp(cur_name, "Bool") == 0 || 
-            strcmp(cur_name, "Int") == 0 || strcmp(cur_name, "String") == 0 || 
-            strcmp(cur_name, "IO") == 0 ) {
+        if (cur_name == Object || cur_name == Bool || cur_name == Int || cur_name == Str || cur_name == IO) {
                 throw "Invalid re-definition";
         }
 
-        if (strcmp(parent_name, "Bool") == 0 || strcmp(parent_name, "Int") == 0 ||
-            strcmp(parent_name, "String") == 0 || strcmp(parent_name, "SELF_TYPE") == 0) {
+        if (parent_name == Bool || parent_name == Int || parent_name == Str || parent_name == SELF_TYPE) {
                 throw "Invalid inheritance";
         }
 
-        if (strcmp(cur_name, "SELF_TYPE") == 0) {
+        if (cur_name == SELF_TYPE) {
             throw "Redefine SELF_TYPE";
         }
 
-        if (ctable->lookup(cur_name) != NULL) {
+        if (ctable->lookup(cur_name->get_string()) != NULL) {
             throw "Redefine class already exists";
         }
 
