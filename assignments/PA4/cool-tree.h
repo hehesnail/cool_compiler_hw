@@ -42,8 +42,8 @@ public:
    virtual Symbol get_name() = 0; //used for constructing inheritance graph
    virtual Symbol get_parent() = 0; // used for constructing inheritance graph
    virtual void type_check() = 0;
-   virtual Feature get_attr(char*) = 0;
-   virtual Feature get_method(char*) = 0;
+   virtual Feature get_attr(Symbol) = 0;
+   virtual Feature get_method(Symbol) = 0;
 
 #ifdef Class__EXTRAS
    Class__EXTRAS
@@ -187,8 +187,8 @@ public:
    Symbol get_name() { return name; }
    Symbol get_parent() { return parent; }
    void type_check();
-   Feature get_attr(char*);
-   Feature get_method(char*);
+   Feature get_attr(Symbol);
+   Feature get_method(Symbol);
 
 #ifdef Class__SHARED_EXTRAS
    Class__SHARED_EXTRAS

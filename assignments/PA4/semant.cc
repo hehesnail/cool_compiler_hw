@@ -501,11 +501,11 @@ void class__class::type_check() {
 }
 
 /*Get attribute of given symbol name*/
-Feature class__class::get_attr(char* feature_name) {
+Feature class__class::get_attr(Symbol feature_name) {
     Feature f = NULL;
     for (int i = features->first(); features->more(i); i = features->next(i)) {
         f = features->nth(i);
-        if (f->get_formals() == NULL && strcmp(f->get_feature_name()->get_string(),feature_name) ==0) {
+        if (f->get_formals() == NULL && f->get_feature_name() == feature_name) {
             return f;
         }
     }
@@ -514,11 +514,11 @@ Feature class__class::get_attr(char* feature_name) {
 }
 
 /*Get method of given symbol name*/
-Feature class__class::get_method(char* feature_name) {
+Feature class__class::get_method(Symbol feature_name) {
     Feature f = NULL; 
     for (int i = features->first(); features->more(i); i = features->next(i)) {
         f = features->nth(i);
-        if (f->get_formals() != NULL && strcmp(f->get_feature_name()->get_string(), feature_name)==0) {
+        if (f->get_formals() != NULL && f->get_feature_name() == feature_name) {
             return f;
         }
     }
@@ -540,7 +540,7 @@ void attr_class::type_check() {
     Class_ p_class = ctable->lookup(cur_class->get_parent()->get_string());
     Feature f = NULL;
     while(true) {
-        f = p_class->get_attr(name->get_string());
+        f = p_class->get_attr(name);
         if (f != NULL) {
             throw "override attribute";
             break;
@@ -572,7 +572,7 @@ void method_class::type_check() {
     Class_ p = ctable->lookup(cur_class->get_parent()->get_string());
     Feature f = NULL;
     while(true) {
-        f = p->get_method(name->get_string());
+        f = p->get_method(name);
         if (f != NULL) {
             break;
         }
@@ -649,7 +649,7 @@ void dispatch_class::type_check() {
     Feature f = NULL; // feature stores matched method func
 
     while(true) {
-        f = p->get_method(name->get_string());
+        f = p->get_method(name);
         if (f != NULL) {
             break;
         }
@@ -695,7 +695,7 @@ void static_dispatch_class::type_check() {
     Class_ p = ctable->lookup(type_name->get_string());
     Feature f = NULL;
     while(true) {
-        f = p->get_method(name->get_string());
+        f = p->get_method(name);
         if (f != NULL) {
             break;
         }
@@ -743,7 +743,7 @@ void assign_class::type_check() {
         //check attributes
         Class_ p = cur_class;
         while(true) {
-            Feature f = p->get_attr(name->get_string());
+            Feature f = p->get_attr(name);
             if (f != NULL) {
                 searchtype = f->get_type();
                 break;
@@ -1052,7 +1052,7 @@ void object_class::type_check() {
         Class_ p = cur_class;
         //check attributes in parent class
         while(true) {
-            Feature f = p->get_attr(name->get_string());
+            Feature f = p->get_attr(name);
             if (f != NULL) {
                 searchtype = f->get_type();
                 break;
