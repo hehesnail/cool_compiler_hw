@@ -583,8 +583,9 @@ void method_class::type_check() {
     Class_ p = ctable->lookup(cur_class->get_parent()->get_string());
     Feature f = NULL;
     while(true) {
-        if (p->get_method(name) != NULL) {
-            f = p->get_method(name);
+        f = p->get_method(name);
+        if (f != NULL) {
+            break;
         }
         if (p->get_parent() == No_class) {
             break;
@@ -623,13 +624,8 @@ void method_class::type_check() {
     }
 
     expr->type_check();
-    Symbol test_type;
-    if (return_type == SELF_TYPE) {
-        test_type = cur_class->get_name();
-    } else {
-        test_type = return_type;
-    }
-    if (!g->check_conformace(expr->get_type(), test_type)) {
+    
+    if (!g->check_conformace(expr->get_type(), return_type)) {
         classtable->semant_error(cur_class) << "Error in method comformance checking" << endl;
     }
 
@@ -660,17 +656,18 @@ void formal_class::type_check() {
 /*Type check for dispatch*/
 void dispatch_class::type_check() {
     expr->type_check();
+
     Symbol t0 = expr->get_type();
     if (t0 == SELF_TYPE) {
         t0 = cur_class->get_name();
     }
     //Get matched method in e0 and beyond
     Class_ p = ctable->lookup(t0->get_string());
-    Feature f = p->get_method(name); // feature stores matched method func
+    Feature f = NULL; // feature stores matched method func
 
     while(true) {
-        if (p->get_method(name) != NULL) {
-            f = p->get_method(name);
+        f = p->get_method(name);
+        if (f != NULL) {
             break;
         }
         if (p->get_parent() == No_class) {
@@ -687,6 +684,11 @@ void dispatch_class::type_check() {
     //type check for expressions, conformance checking
     Formals f_params = f->get_formals();
     Symbol f_return_type = f->get_type();
+
+    if (f_return_type == SELF_TYPE) {
+        f_return_type = expr->get_type();
+    }
+
     for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
         Expression ei = actual->nth(i);
         ei->type_check();
@@ -696,9 +698,7 @@ void dispatch_class::type_check() {
             return;
         }
     }
-    if (f_return_type == SELF_TYPE) {
-        f_return_type = expr->get_type();
-    }
+    
     type = f_return_type;
 }
 
@@ -713,10 +713,10 @@ void static_dispatch_class::type_check() {
 
     //Get matched method in typename
     Class_ p = ctable->lookup(type_name->get_string());
-    Feature f = p->get_method(name);
+    Feature f = NULL;
     while(true) {
-        if (p->get_method(name) != NULL) {
-            f = p->get_method(name);
+        f = p->get_method(name);
+        if (f != NULL) {
             break;
         }
         if (p->get_parent() == No_class) {
@@ -732,6 +732,11 @@ void static_dispatch_class::type_check() {
     //type check for expressions, conformance checking
     Formals f_params = f->get_formals();
     Symbol f_return_type = f->get_type();
+
+    if (f_return_type == SELF_TYPE) {
+        f_return_type = expr->get_type();
+    }
+
     for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
         Expression ei = actual->nth(i);
         ei->type_check();
@@ -742,9 +747,6 @@ void static_dispatch_class::type_check() {
         }
     }
 
-    if (f_return_type == SELF_TYPE) {
-        f_return_type = expr->get_type();
-    }
     type = f_return_type;
 }
 
@@ -757,6 +759,7 @@ void assign_class::type_check() {
     }
     */
     expr->type_check();
+    Symbol exprtype = expr->get_type();
     Symbol searchtype = symboltable->lookup(name->get_string());
     if (searchtype == NULL) {
         //check attributes
@@ -779,12 +782,12 @@ void assign_class::type_check() {
         return;
     }
 
-    if (!g->check_conformace(expr->get_type(), searchtype)) {
+    if (!g->check_conformace(exprtype, searchtype)) {
         classtable->semant_error(cur_class) << "Assign conformance check fail" << endl;
         return;
     }
 
-    type = expr->get_type();
+    type = exprtype;
 }
 
 /*Type for Int constant is Int*/
@@ -815,11 +818,14 @@ void isvoid_class::type_check() {
 
 /*Type check for new*/
 void new__class::type_check() {
+    Symbol new_type;
     if (type_name == SELF_TYPE) {
-        type = cur_class->get_name();
+        new_type = cur_class->get_name();
     } else {
-        type = type_name;
+        new_type = type_name;
     }
+
+    type = type_name;
 }
 
 /*Type check for equal*/
@@ -978,28 +984,28 @@ void loop_class::type_check() {
 /*Type check for if*/
 void cond_class::type_check() {
     pred->type_check();
-    then_exp->type_check();
-    else_exp->type_check();
 
     if (pred->get_type() != Bool) {
-        type = Object;
         classtable->semant_error(cur_class) << "Type for pred in if must be Bool" << endl;
         return;
-    } else {
-        type = g->lub(then_exp->get_type(), else_exp->get_type());
     }
+    then_exp->type_check();
+    else_exp->type_check();   
+
+    type = g->lub(then_exp->get_type(), else_exp->get_type());
 }
 
 /*Type check for block*/ 
 void block_class::type_check() {
-    Symbol seq_type;
+    Expression last = NULL;
     for (int i = body->first(); body->more(i); i = body->next(i)) {
         Expression e = body->nth(i);
         e->type_check();
-        seq_type = e->get_type();
+        last = e;
     }
-
-    type = seq_type;
+    if (last != NULL) {
+        type = last->get_type();
+    }
 } 
 
 /*Type check for cases*/
@@ -1017,17 +1023,21 @@ void branch_class::type_check() {
 /*Type check for case*/
 void typcase_class::type_check() {
     expr->type_check();
+    Symbol expr_type = expr->get_type();
     Symbol final_type = NULL;
 
-    symboltable->enterscope(); // The object type environment changes
+    SymbolTable<char*, Entry>* casetable = new SymbolTable<char*, Entry>();
+    casetable->enterscope();
+
     for(int i = cases->first(); cases->more(i); i = cases->next(i)) {
+        symboltable->enterscope();
         Case c = cases->nth(i);
         //Each branch of a case must have distinct types
-        if (symboltable->probe(c->get_type_decl()->get_string()) != NULL) {
+        if (casetable->lookup(c->get_type_decl()->get_string()) != NULL) {
             classtable->semant_error(cur_class) << "Each branch must have distinct types" << endl;
             return;
         }
-        symboltable->addid(c->get_type_decl()->get_string(), c->get_type_decl());
+        casetable->addid(c->get_type_decl()->get_string(), c->get_type_decl());
         c->type_check();
 
         if (!g->check_conformace(c->get_expr_type(), c->get_type_decl())) {
@@ -1035,15 +1045,15 @@ void typcase_class::type_check() {
             return;
         }
 
-        if (!final_type) {
+        if (final_type == NULL) {
             final_type = c->get_expr_type();
         } else {
             final_type = g->lub(final_type, c->get_expr_type());
         }
+        symboltable->exitscope();
     }
 
     type = final_type;
-    symboltable->exitscope();
 }
 
 /*Type check for Let expression, note that two cases: let-init, let-no-init*/
@@ -1055,28 +1065,18 @@ void let_class::type_check() {
 
     init->type_check();
     symboltable->enterscope();
-    Symbol t0;
-    if (type_decl == SELF_TYPE) {
-        t0 = cur_class->get_name();
-    } else {
-        t0 = type_decl;
-    }
 
-    if (init->get_type() == No_type) {
-        //let-no-init case
-        symboltable->addid(identifier->get_string(), t0);
-        body->type_check();
-        type = body->get_type();
-    } else {
-        //let-init case
-        if (!g->check_conformace(init->get_type(), t0)) {
-            classtable->semant_error(cur_class) << "let conformance unsatisfied" << endl;
-            return;
-        }
-        symboltable->addid(identifier->get_string(), t0);
-        body->type_check();
-        type = body->get_type();
+    Symbol init_type = init->get_type();
+    if (init_type != No_type && g->check_conformace(init_type, type_decl) == false) {
+        classtable->semant_error(cur_class) << "type error in let class" << endl;
     }
+   
+    symboltable->addid(identifier->get_string(), type_decl);
+    body->type_check();
+    type = body->get_type();
+
+    symboltable->exitscope();
+    
 }
 
 /*Type check for object type*/
@@ -1130,7 +1130,7 @@ void program_class::semant()
     pre_check();
     type_check();
 
-    ctable->exitscope(); 
+    //ctable->exitscope(); 
 
     if (classtable->errors()) {
         cerr << "Compilation halted due to static semantic errors." << endl; 
