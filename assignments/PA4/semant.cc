@@ -435,8 +435,7 @@ void program_class::pre_check() {
 
     //Test if there is circle
     if (check_inheritance_circle()) {
-        classtable->semant_error() << "Circle in inheritance" << endl;
-        return;
+        throw "Circle in inheritance";
     }
 
     bool exist_main = false;
@@ -452,32 +451,27 @@ void program_class::pre_check() {
         if (strcmp(cur_name, "Object") == 0 || strcmp(cur_name, "Bool") == 0 || 
             strcmp(cur_name, "Int") == 0 || strcmp(cur_name, "String") == 0 || 
             strcmp(cur_name, "IO") == 0 ) {
-                classtable->semant_error(cur_class) << "Invalid re-definition" << endl;
-                return;
+                throw "Invalid re-definition";
         }
 
         if (strcmp(parent_name, "Bool") == 0 || strcmp(parent_name, "Int") == 0 ||
             strcmp(parent_name, "String") == 0 || strcmp(parent_name, "SELF_TYPE") == 0) {
-                classtable->semant_error(cur_class) << "Invalid inheritance" << endl;
-                return;
+                throw "Invalid inheritance";
         }
 
         if (strcmp(cur_name, "SELF_TYPE") == 0) {
-            classtable->semant_error(cur_class) << "Redefine SELF_TYPE" << endl;
-            return;
+            throw "Redefine SELF_TYPE";
         }
 
         if (ctable->lookup(cur_name) != NULL) {
-            classtable->semant_error(cur_class) << "Redefine class already exists" << endl;
-            return;
+            throw "Redefine class already exists";
         }
 
         ctable->addid(cur_class->get_name()->get_string(), cur_class);
     }
 
     if (exist_main == false) {
-        classtable->semant_error() << "No Main class" << endl;
-        return;
+        throw "No Main class";
     }
 }
 
@@ -486,8 +480,7 @@ void program_class::type_check() {
     for (int i = classes->first(); classes->more(i); i = classes->next(i)) {
         cur_class = classes->nth(i);
         if (ctable->lookup(cur_class->get_parent()->get_string()) == NULL) {
-            classtable->semant_error(cur_class) << "Inherit from undefined class" << endl;
-            return;
+            throw "Inherit from undefined class";
         }
 
         //For each class, traversal the class, check each expr
@@ -540,8 +533,7 @@ void attr_class::type_check() {
     }
 
     if (name == self) {
-        classtable->semant_error(cur_class) << "bind self to attribute" << endl;
-        return;
+        throw "bind self to attribute";
     } 
 
     //check redefinition of inherited attributes
@@ -550,8 +542,7 @@ void attr_class::type_check() {
     while(true) {
         f = p_class->get_attr(name->get_string());
         if (f != NULL) {
-            classtable->semant_error(cur_class) << "override attribute" << endl;
-            return;
+            throw "override attribute";
             break;
         }
 
@@ -564,8 +555,7 @@ void attr_class::type_check() {
     init->type_check();
 
     if ((init->get_type() != No_type) && !(g->check_conformace(init->get_type(), type_decl))) {
-        classtable->semant_error(cur_class) << "Init and type_decl error in attribute" << endl;
-        return;
+        throw "Init and type_decl error in attribute";
     }
     symboltable->addid(name->get_string(), type_decl);
 }
@@ -575,8 +565,7 @@ void method_class::type_check() {
     symboltable->enterscope();
 
     if (ctable->lookup(return_type->get_string()) == NULL && return_type != SELF_TYPE) {
-        classtable->semant_error(cur_class) << "Invalid return type" << endl;
-        return;
+        throw "Invalid return type";
     }
 
     //check redefinition of method in inheritance
@@ -598,8 +587,7 @@ void method_class::type_check() {
         Formals formal_params = f->get_formals();
         // check number of args
         if (formals->len() != formal_params->len()) {
-            classtable->semant_error(cur_class) << "Override method error: No match len" << endl;
-            return;
+            throw "Override method error: No match len";
         }
         //chech types of formals
         for (int i = formals->first(); formals->more(i); i = formals->next(i)) {
@@ -607,14 +595,12 @@ void method_class::type_check() {
             f1->type_check();
             Formal f2 = formal_params->nth(i);
             if (f1->get_formal_type() != f2->get_formal_type()) {
-                classtable->semant_error(cur_class) << "Types in overriden method don't match" << endl;
-                return;
+                throw "Types in overriden method don't match";
             }
         }
         //check return type
         if (return_type != f->get_type()) {
-            classtable->semant_error(cur_class) << "Return type in overriden method does not match" << endl;
-            return;
+            throw "Return type in overriden method does not match";
         } 
     } else {
         for (int i = formals->first(); formals->more(i); i = formals->next(i)) {
@@ -626,8 +612,7 @@ void method_class::type_check() {
     expr->type_check();
     
     if (!g->check_conformace(expr->get_type(), return_type)) {
-        classtable->semant_error(cur_class) << "Error in method comformance checking" << endl;
-        return;
+        throw "Error in method comformance checking";
     }
 
     symboltable->exitscope();
@@ -636,18 +621,15 @@ void method_class::type_check() {
 /*Type check rule for the formal class*/
 void formal_class::type_check() {
     if (symboltable->probe(name->get_string()) != NULL) {
-        classtable->semant_error(cur_class) << "Duplicate names in formal" << endl;
-        return;
+        throw "Duplicate names in formal";
     }
 
     if (name == self) {
-        classtable->semant_error(cur_class) << "Self as parameter name is wrong" << endl;
-        return;
+        throw "Self as parameter name is wrong";
     }
 
     if (type_decl == SELF_TYPE) {
-        classtable->semant_error(cur_class) << "SELF_TYPE as parameter type is wrong" << endl;
-        return;
+        throw "SELF_TYPE as parameter type is wrong";
     }
 
     //binding the type with name of parameter, thus change O to O[T/x]
@@ -678,8 +660,7 @@ void dispatch_class::type_check() {
     }
 
     if (f == NULL) {
-        classtable->semant_error(cur_class) << "No matched method" << endl;
-        return;
+        throw "No matched method";
     }    
 
     //type check for expressions, conformance checking
@@ -695,8 +676,7 @@ void dispatch_class::type_check() {
         ei->type_check();
         Formal fi = f_params->nth(i);
         if (!g->check_conformace(ei->get_type(), fi->get_formal_type())) {
-            classtable->semant_error(cur_class) << "Parameters types don't match" << endl;
-            return;
+            throw "Parameters types don't match";
         }
     }
     
@@ -708,8 +688,7 @@ void static_dispatch_class::type_check() {
     expr->type_check();
     Symbol e0 = expr->get_type();
     if (!g->check_conformace(e0, type_name)) {
-        classtable->semant_error(cur_class) << "Error in static dispatch" << endl;
-        return;
+        throw "Error in static dispatch";
     }
 
     //Get matched method in typename
@@ -726,8 +705,7 @@ void static_dispatch_class::type_check() {
         p = ctable->lookup(p->get_parent()->get_string());
     }
     if (f == NULL) {
-        classtable->semant_error(cur_class) << "No match method in static dispatch" << endl;
-        return;
+        throw "No match method in static dispatch";
     }    
 
     //type check for expressions, conformance checking
@@ -743,8 +721,7 @@ void static_dispatch_class::type_check() {
         ei->type_check();
         Formal fi = f_params->nth(i);
         if (!g->check_conformace(ei->get_type(), fi->get_formal_type())) {
-            classtable->semant_error(cur_class) << "Parameters types don't match in static dispatch" << endl;
-            return;
+            throw "Parameters types don't match in static dispatch";
         }
     }
 
@@ -779,13 +756,11 @@ void assign_class::type_check() {
     } 
 
     if (searchtype == NULL) {
-        classtable->semant_error(cur_class) << "Error in finding def in assign" << endl;
-        return;
+        throw "Error in finding def in assign";
     }
 
     if (!g->check_conformace(exprtype, searchtype)) {
-        classtable->semant_error(cur_class) << "Assign conformance check fail" << endl;
-        return;
+        throw "Assign conformance check fail";
     }
 
     type = exprtype;
@@ -839,8 +814,7 @@ void eq_class::type_check() {
             type = Bool;
         } else {
             type = Object;
-            classtable->semant_error(cur_class) << "Not all Ints in eq_class" << endl;
-            return;
+            throw "Not all Ints in eq_class";
          }
     }
 
@@ -849,8 +823,7 @@ void eq_class::type_check() {
             type = Bool;
         } else {
             type = Object;
-            classtable->semant_error(cur_class) << "Not all Strs in eq_class" << endl;
-            return;
+            throw "Not all Strs in eq_class";
         }
     }
 
@@ -859,8 +832,7 @@ void eq_class::type_check() {
             type = Bool;
         } else {
             type = Object;
-            classtable->semant_error(cur_class) << "Not all bools in eq_class" << endl;
-            return;
+            throw "Not all bools in eq_class";
         }
     }
 
@@ -875,8 +847,7 @@ void plus_class::type_check() {
         type = Int;
     } else {
         type = Object;
-        classtable->semant_error(cur_class) << "Types must be Ints for +" << endl;
-        return;
+        throw "Types must be Ints for +";
     }
 }
 
@@ -888,8 +859,7 @@ void sub_class::type_check() {
         type = Int;
     } else {
         type = Object;
-        classtable->semant_error(cur_class) << "Types must be Ints for -" << endl;
-        return;
+        throw "Types must be Ints for -";
     }
 }
 
@@ -901,8 +871,7 @@ void mul_class::type_check() {
         type = Int;
     } else {
         type = Object;
-        classtable->semant_error(cur_class) << "Types must be Ints for *" << endl;
-        return;
+        throw "Types must be Ints for *";
     }
 }
 
@@ -914,8 +883,7 @@ void divide_class::type_check() {
         type = Int;
     } else {
         type = Object;
-        classtable->semant_error(cur_class) << "Types must be Ints for /" << endl;
-        return;
+        throw "Types must be Ints for /";
     }
 }
 
@@ -926,8 +894,7 @@ void neg_class::type_check() {
         type = Int;
     } else {
         type = Object;
-        classtable->semant_error(cur_class) << "Type must be Int for neg" << endl;
-        return;
+        throw "Type must be Int for neg";
     }
 }
 
@@ -939,8 +906,7 @@ void comp_class::type_check() {
         type = Bool;
     } else {
         type = Object;
-        classtable->semant_error(cur_class) << "Type for Not must be Bool" << endl;
-        return;
+        throw "Type for Not must be Bool";
     }
 }
 
@@ -952,8 +918,7 @@ void leq_class::type_check() {
         type = Bool;
     } else {
         type = Object;
-        classtable->semant_error(cur_class) << "Types for <= must be Ints" << endl;
-        return;
+        throw "Types for <= must be Ints";
     }
 }
 
@@ -966,8 +931,7 @@ void lt_class::type_check() {
         type = Bool;
     } else {
         type = Object;
-        classtable->semant_error(cur_class) << "Types for < must be Ints" << endl;
-        return;
+        throw "Types for < must be Ints";
     }
 }
 
@@ -975,8 +939,7 @@ void lt_class::type_check() {
 void loop_class::type_check() {
     pred->type_check();
     if (pred->get_type() != Bool) {
-        classtable->semant_error(cur_class) << "Type for pred in loop must be Bool" << endl;
-        return;
+        throw "Type for pred in loop must be Bool";
     }
     body->type_check();
     type = Object;
@@ -987,8 +950,7 @@ void cond_class::type_check() {
     pred->type_check();
 
     if (pred->get_type() != Bool) {
-        classtable->semant_error(cur_class) << "Type for pred in if must be Bool" << endl;
-        return;
+        throw "Type for pred in if must be Bool";
     }
     then_exp->type_check();
     else_exp->type_check();   
@@ -1035,15 +997,13 @@ void typcase_class::type_check() {
         Case c = cases->nth(i);
         //Each branch of a case must have distinct types
         if (casetable->lookup(c->get_type_decl()->get_string()) != NULL) {
-            classtable->semant_error(cur_class) << "Each branch must have distinct types" << endl;
-            return;
+            throw "Each branch must have distinct types";
         }
         casetable->addid(c->get_type_decl()->get_string(), c->get_type_decl());
         c->type_check();
 
         if (!g->check_conformace(c->get_expr_type(), c->get_type_decl())) {
-            classtable->semant_error(cur_class) << "In each brank, expr type must conform decl type" << endl;
-            return;
+            throw "In each brank, expr type must conform decl type";
         }
 
         if (final_type == NULL) {
@@ -1060,8 +1020,7 @@ void typcase_class::type_check() {
 /*Type check for Let expression, note that two cases: let-init, let-no-init*/
 void let_class::type_check() {
     if (identifier == self) {
-        classtable->semant_error(cur_class) << "bind self in a let" << endl;
-        return;
+        throw "bind self in a let";
     }
 
     init->type_check();
@@ -1069,8 +1028,7 @@ void let_class::type_check() {
 
     Symbol init_type = init->get_type();
     if (init_type != No_type && g->check_conformace(init_type, type_decl) == false) {
-        classtable->semant_error(cur_class) << "type error in let class" << endl;
-        return;
+        throw "type error in let class";
     }
    
     symboltable->addid(identifier->get_string(), type_decl);
@@ -1109,8 +1067,7 @@ void object_class::type_check() {
     }
 
     if (searchtype == NULL) {
-        classtable->semant_error(cur_class) << "Can't find object definition" << endl;
-        return;
+        throw "Can't find object definition";
     }
 
     type = searchtype;
@@ -1129,8 +1086,14 @@ void program_class::semant()
 
     symboltable = new SymbolTable<char*, Entry>();
 
-    pre_check();
-    type_check();
+    try {
+        pre_check();
+        type_check();
+    } 
+    catch (const char* msg) {
+        classtable->semant_error(cur_class) << msg << endl;
+    }
+    
 
     //ctable->exitscope(); 
 
