@@ -627,6 +627,7 @@ void method_class::type_check() {
     
     if (!g->check_conformace(expr->get_type(), return_type)) {
         classtable->semant_error(cur_class) << "Error in method comformance checking" << endl;
+        return;
     }
 
     symboltable->exitscope();
@@ -1069,6 +1070,7 @@ void let_class::type_check() {
     Symbol init_type = init->get_type();
     if (init_type != No_type && g->check_conformace(init_type, type_decl) == false) {
         classtable->semant_error(cur_class) << "type error in let class" << endl;
+        return;
     }
    
     symboltable->addid(identifier->get_string(), type_decl);
