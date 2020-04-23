@@ -475,7 +475,7 @@ void program_class::pre_check() {
     }
 
     if (!exist_main) {
-        classtable->semant_error(cur_class) << "No Main class" << endl;
+        classtable->semant_error() << "No Main class" << endl;
         return;
     }
 }
@@ -747,10 +747,12 @@ void static_dispatch_class::type_check() {
 
 /*Type check for assign*/
 void assign_class::type_check() {
-    if(name == self) {
+    /*
+    if(strcmp(name->get_string(),  "self") {
         classtable->semant_error(cur_class) << "Error to assign self" << endl;
         return;
     }
+    */
 
     Symbol searchtype = symboltable->lookup(name->get_string());
     if (searchtype == NULL) {
