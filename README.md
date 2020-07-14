@@ -2,4 +2,4 @@
 - [x] PA1: Lexical Analyzer
 - [x] PA2: Parser
 - [x] PA3: Static Semantics
-- [ ] PA4: Code Generator
+- [x] PA4: Code Generator
